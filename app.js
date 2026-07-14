@@ -1,7 +1,19 @@
-const STORAGE_KEY='turni-ferie-2026-v1';
+'use strict';
+const APP_VERSION='2.0.0';
+const STORAGE_KEY='turni-ferie-2026-v2';
 const SUPABASE_URL='https://ztamohdnmpivcojxyvcv.supabase.co';
 const SUPABASE_PUBLISHABLE_KEY='sb_publishable_4YeUzoSUbtWq57ylQPBIqw_mvCcJsHd';
-const supabaseClient=window.supabase.createClient(SUPABASE_URL,SUPABASE_PUBLISHABLE_KEY);
+if(!window.supabase?.createClient){
+  document.addEventListener('DOMContentLoaded',()=>{
+    const status=document.querySelector('#loginStatus');
+    if(status){status.textContent='Impossibile caricare il collegamento al database. Controlla la connessione e ricarica la pagina.';status.classList.add('error')}
+  });
+  throw new Error('Libreria Supabase non caricata');
+}
+const supabaseClient=window.supabase.createClient(SUPABASE_URL,SUPABASE_PUBLISHABLE_KEY,{
+  auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:true},
+  global:{headers:{'x-client-info':`turni-ferie/${APP_VERSION}`}}
+});
 let operatorIds=new Map(), gipPenaleIds=new Map(), gipCivileIds=new Map();
 async function loadRemoteState(){
   const [opRes,gipRes,turnRes,leaveRes,auditRes,profileRes]=await Promise.all([
@@ -192,11 +204,36 @@ function renderCalendar(){const year=2026,month=calendarMonth;$('#monthSelect').
 function fillSelects(){$('#turnOperator').innerHTML=optionList(state.operators,'','Seleziona operatore');$('#turnCriminal').innerHTML=optionList(state.gipPenale);$('#turnCivil').innerHTML=optionList(state.gipCivile);$('#leaveOperator').innerHTML=optionList(state.operators,'','Seleziona operatore');const f=$('#leaveOperatorFilter');if(f){const current=f.value;f.innerHTML='<option value="">Tutti gli operatori</option>'+state.operators.map(x=>`<option ${x===current?'selected':''}>${x}</option>`).join('')}}
 function openTurn(id){const t=state.turns.find(x=>x.id===id)||{id:'',date:'',operator:'',gipPenale:'',gipCivile:'',notes:''};$('#turnDialogTitle').textContent=id?'Modifica turno':'Nuovo turno';$('#turnId').value=t.id;$('#turnDate').value=t.date;$('#turnOperator').innerHTML=optionList(state.operators,t.operator,'Seleziona operatore');$('#turnCriminal').innerHTML=optionList(state.gipPenale,t.gipPenale);$('#turnCivil').innerHTML=optionList(state.gipCivile,t.gipCivile);$('#turnNotes').value=t.notes;$('#turnDialog').showModal()}
 function openLeave(id){const l=state.leaves.find(x=>x.id===id)||{id:'',operator:'',start:'',end:'',status:'Richiesta',notes:''};$('#leaveDialogTitle').textContent=id?'Modifica ferie':'Inserisci ferie';$('#leaveId').value=l.id;$('#leaveOperator').innerHTML=optionList(state.operators,l.operator,'Seleziona operatore');$('#leaveStart').value=l.start;$('#leaveEnd').value=l.end;$('#leaveStatus').value=l.status;$('#leaveNotes').value=l.notes;$('#leaveDialog').showModal()}
-$('#loginForm').addEventListener('submit',async e=>{e.preventDefault();const btn=e.submitter;btn.disabled=true;btn.textContent='Accesso…';try{const {error}=await supabaseClient.auth.signInWithPassword({email:$('#loginEmail').value.trim(),password:$('#loginPassword').value});if(error)throw error;await loadRemoteState();$('#loginView').classList.add('hidden');$('#appView').classList.remove('hidden');refreshProfileUi();renderAll();toast('Accesso effettuato')}catch(err){toast(err.message==='Invalid login credentials'?'Email o password non corrette':`Errore: ${err.message}`)}finally{btn.disabled=false;btn.textContent='Accedi'}});
+$('#loginForm').addEventListener('submit',async e=>{
+  e.preventDefault();
+  const btn=e.submitter||$('#loginForm button[type="submit"]');
+  const status=$('#loginStatus');
+  const email=$('#loginEmail').value.trim().toLowerCase();
+  const password=$('#loginPassword').value;
+  status.textContent=''; status.classList.remove('error','success');
+  btn.disabled=true; btn.textContent='Accesso in corso…';
+  try{
+    const {data,error}=await supabaseClient.auth.signInWithPassword({email,password});
+    if(error) throw error;
+    if(!data.session) throw new Error('Sessione non creata');
+    await loadRemoteState();
+    $('#loginView').classList.add('hidden');
+    $('#appView').classList.remove('hidden');
+    refreshProfileUi(); renderAll(); toast('Accesso effettuato');
+  }catch(err){
+    console.error('Login error',err);
+    const message=err?.message==='Invalid login credentials'
+      ? 'Email o password non corrette.'
+      : `Accesso non riuscito: ${err?.message||'errore sconosciuto'}`;
+    status.textContent=message; status.classList.add('error');
+  }finally{
+    btn.disabled=false; btn.textContent='Accedi';
+  }
+});
 
 $('#profileFab').onclick=openProfile;
 $$('.close-profile').forEach(b=>b.addEventListener('click',()=>$('#profileDialog').close()));
-$('#profileForm').addEventListener('submit',async e=>{e.preventDefault();if(!currentUser)return;const name=$('#profileName').value.trim();const email=$('#profileEmail').value.trim().toLowerCase();const password=$('#profilePassword').value,confirmPassword=$('#profilePasswordConfirm').value;if(!name||!email)return toast('Inserisci nome ed email');if(password&&password.length<6)return toast('La password deve avere almeno 6 caratteri');if(password!==confirmPassword)return toast('Le password non coincidono');const {error:pErr}=await supabaseClient.from('profili').update({nome,email}).eq('id',currentUser.id);if(pErr)return toast(`Errore: ${pErr.message}`);const changes={};if(email!==currentUser.email)changes.email=email;if(password)changes.password=password;if(Object.keys(changes).length){const {error:aErr}=await supabaseClient.auth.updateUser(changes);if(aErr)return toast(`Errore account: ${aErr.message}`)}currentUser.name=name;currentUser.email=email;refreshProfileUi();$('#profileDialog').close();toast(email!==currentUser.email?'Controlla la nuova email per confermare':'Profilo aggiornato')});
+$('#profileForm').addEventListener('submit',async e=>{e.preventDefault();if(!currentUser)return;const name=$('#profileName').value.trim();const email=$('#profileEmail').value.trim().toLowerCase();const oldEmail=currentUser.email;const password=$('#profilePassword').value,confirmPassword=$('#profilePasswordConfirm').value;if(!name||!email)return toast('Inserisci nome ed email');if(password&&password.length<6)return toast('La password deve avere almeno 6 caratteri');if(password!==confirmPassword)return toast('Le password non coincidono');const {error:pErr}=await supabaseClient.from('profili').update({nome,email}).eq('id',currentUser.id);if(pErr)return toast(`Errore: ${pErr.message}`);const changes={};if(email!==oldEmail)changes.email=email;if(password)changes.password=password;if(Object.keys(changes).length){const {error:aErr}=await supabaseClient.auth.updateUser(changes);if(aErr)return toast(`Errore account: ${aErr.message}`)}currentUser.name=name;currentUser.email=email;refreshProfileUi();$('#profileDialog').close();toast(email!==oldEmail?'Controlla la nuova email per confermare':'Profilo aggiornato')});
 $('#logoutBtn').onclick=async()=>{await supabaseClient.auth.signOut();location.reload()};
 $('#mainNav').onclick=e=>{const b=e.target.closest('.nav-item');if(!b)return;$$('.nav-item').forEach(x=>x.classList.remove('active'));b.classList.add('active');$$('.view').forEach(x=>x.classList.remove('active-view'));$('#'+b.dataset.view).classList.add('active-view');$('#pageTitle').textContent=b.textContent};
 $('#addTurnBtn').onclick=()=>openTurn();$('#addLeaveBtn').onclick=()=>openLeave();
@@ -211,5 +248,23 @@ document.addEventListener('click',e=>{const b=e.target.closest('.goto-upcoming')
 $('#prevMonth').onclick=()=>{calendarMonth=(calendarMonth+11)%12;renderCalendar()};$('#nextMonth').onclick=()=>{calendarMonth=(calendarMonth+1)%12;renderCalendar()};$('#monthSelect').onchange=e=>{calendarMonth=+e.target.value;renderCalendar()};
 $('#exportBtn').onclick=()=>{const blob=new Blob([JSON.stringify(state,null,2)],{type:'application/json'});const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='turni-ferie-2026-backup.json';a.click();URL.revokeObjectURL(a.href);audit('Esportato backup dati');toast('Backup esportato')};
 const months=['Gennaio','Febbraio','Marzo','Aprile','Maggio','Giugno','Luglio','Agosto','Settembre','Ottobre','Novembre','Dicembre'];$('#monthSelect').innerHTML=months.map((m,i)=>`<option value="${i}">${m} 2026</option>`).join('');$('#todayLabel').textContent=new Intl.DateTimeFormat('it-IT',{weekday:'long',day:'numeric',month:'long',year:'numeric'}).format(new Date());
-(async()=>{const {data:{session}}=await supabaseClient.auth.getSession();if(session){try{await loadRemoteState();$('#loginView').classList.add('hidden');$('#appView').classList.remove('hidden');refreshProfileUi();renderAll()}catch(err){console.error(err);toast('Errore nel caricamento dei dati')}}})();
-if('serviceWorker'in navigator)navigator.serviceWorker.register('sw.js').catch(()=>{});
+(async()=>{
+  try{
+    const {data:{session},error}=await supabaseClient.auth.getSession();
+    if(error) throw error;
+    if(session){
+      await loadRemoteState();
+      if(currentUser?.attivo===false){await supabaseClient.auth.signOut();throw new Error('Account disattivato')}
+      $('#loginView').classList.add('hidden'); $('#appView').classList.remove('hidden');
+      refreshProfileUi(); renderAll();
+    }
+  }catch(err){
+    console.error('Avvio app',err);
+    const status=$('#loginStatus');
+    if(status){status.textContent=`Impossibile caricare la sessione: ${err?.message||'errore'}`;status.classList.add('error')}
+  }
+})();
+
+if('serviceWorker' in navigator){
+  window.addEventListener('load',()=>navigator.serviceWorker.register('sw.js?v=2.0.0').catch(console.warn));
+}

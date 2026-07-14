@@ -1,30 +1,12 @@
-# Turni & Ferie 2026
+# Turni & Ferie Tribunale — versione 2.0
 
-Web app privata pronta per la pubblicazione su Netlify.
+Versione collegata a Supabase e pronta per Netlify.
 
-## Funzioni incluse
-- login demo;
-- dashboard;
-- turni del sabato;
-- distinzione GIP Penale e GIP Civile;
-- ferie e approvazioni;
-- controllo automatico conflitti turno/ferie;
-- calendario mensile;
-- statistiche per operatore;
-- registro modifiche;
-- esportazione backup JSON;
-- installazione come PWA.
+## Aggiornamento
+1. Nel repository GitHub aprire **Add file → Upload files**.
+2. Trascinare tutti i file di questa cartella nella radice del repository.
+3. Confermare la sostituzione dei file esistenti.
+4. Commit consigliato: `Ripristino completo login Supabase e cache`.
+5. Attendere il deploy Netlify e aprire il sito con `Ctrl + F5`.
 
-## Accesso demo
-- Email: `admin@demo.it`
-- Password: `demo123`
-
-## Pubblicazione su Netlify
-1. Decomprimere il file ZIP.
-2. Trascinare la cartella nella sezione Netlify Drop, oppure collegarla a un repository GitHub.
-3. Non è richiesto alcun comando di build.
-
-## Dati
-Questa versione salva i dati nel browser tramite `localStorage`. È ideale per provare grafica e flusso operativo, ma non per l'uso simultaneo da più dispositivi.
-
-Per l'uso reale da 3/4 persone occorre collegare il progetto a Supabase, sostituendo il salvataggio locale con tabelle condivise e autenticazione Supabase.
+La chiave inclusa è la chiave pubblicabile Supabase. Non inserire mai chiavi `service_role` o `sb_secret_` nel repository.

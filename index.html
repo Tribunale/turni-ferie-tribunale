@@ -6,7 +6,7 @@
   <meta name="theme-color" content="#0f2742" />
   <title>Turni & Ferie 2026</title>
   <link rel="manifest" href="manifest.webmanifest" />
-  <link rel="stylesheet" href="styles.css" />
+  <link rel="stylesheet" href="styles.css?v=2.0.0" />
 </head>
 <body>
   <div id="toast" class="toast" aria-live="polite"></div>
@@ -20,17 +20,14 @@
       <p class="muted">Calendario condiviso per operatori, ferie e turnazione GIP Penale/Civile.</p>
       <form id="loginForm" class="stack">
         <label>Email
-          <input id="loginEmail" type="email" value="admin@demo.it" required />
+          <input id="loginEmail" type="email" autocomplete="username" placeholder="nome@esempio.it" required />
         </label>
         <label>Password
-          <input id="loginPassword" type="password" value="demo123" required />
+          <input id="loginPassword" type="password" autocomplete="current-password" placeholder="Password" required />
         </label>
         <button class="btn primary" type="submit">Accedi</button>
       </form>
-      <div class="demo-box">
-        <strong>Accesso demo</strong>
-        <span>admin@demo.it · demo123</span>
-      </div>
+      <p id="loginStatus" class="login-status" aria-live="polite"></p>
     </div>
   </section>
 
@@ -262,7 +259,7 @@
           <input id="profilePasswordConfirm" type="password" autocomplete="new-password" minlength="6" placeholder="Ripeti la nuova password" />
         </label>
       </div>
-      <p class="muted profile-help">Le modifiche vengono salvate su questo dispositivo. Quando l’app sarà collegata al database, saranno sincronizzate per ogni account.</p>
+      <p class="muted profile-help">Nome, email e password vengono aggiornati nell’account Supabase. La modifica dell’email può richiedere una conferma tramite messaggio.</p>
       <div class="modal-actions">
         <button type="button" class="btn ghost close-profile">Annulla</button>
         <button type="submit" class="btn primary">Salva profilo</button>
@@ -270,6 +267,7 @@
     </form>
   </dialog>
 
-  <script src="app.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.49.8/dist/umd/supabase.min.js" crossorigin="anonymous"></script>
+  <script src="app.js?v=2.0.0"></script>
 </body>
 </html>

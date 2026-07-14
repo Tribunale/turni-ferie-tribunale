@@ -38,3 +38,10 @@
 .calendar-tooltip .tooltip-turn{padding-top:7px;border-top:1px solid rgba(255,255,255,.14)}
 .calendar-tooltip .tooltip-conflict{display:block;background:#a92e45;border-radius:8px;padding:7px 9px;font-weight:800}
 @media(max-width:650px){.calendar-tooltip{font-size:13px}}
+
+/* Login e messaggi applicazione */
+.login-status{min-height:20px;margin:12px 0 0;font-size:13px;text-align:center;color:var(--muted)}
+.login-status.error{color:#a93245;font-weight:700}
+.login-status.success{color:#247048;font-weight:700}
+.login-card .btn[disabled]{opacity:.65;cursor:wait}
+.unassigned{color:#9ca8b3!important;font-weight:400!important;font-size:.86em!important;background:transparent!important;border:0!important;padding:0!important}
