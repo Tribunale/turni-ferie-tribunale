@@ -1,0 +1,274 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="theme-color" content="#0f2742" />
+  <title>Turni & Ferie 2026</title>
+  <link rel="manifest" href="manifest.webmanifest" />
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <div id="toast" class="toast" aria-live="polite"></div>
+
+  <section id="loginView" class="login-view">
+    <div class="login-card">
+      <div class="brand-mark">TF</div>
+      <p class="eyebrow">GESTIONE RISERVATA</p>
+      <h1>Turni & Ferie 2026</h1>
+      <p class="muted">Calendario condiviso per operatori, ferie e turnazione GIP Penale/Civile.</p>
+      <form id="loginForm" class="stack">
+        <label>Email
+          <input id="loginEmail" type="email" value="admin@demo.it" required />
+        </label>
+        <label>Password
+          <input id="loginPassword" type="password" value="demo123" required />
+        </label>
+        <button class="btn primary" type="submit">Accedi</button>
+      </form>
+      <div class="demo-box">
+        <strong>Accesso demo</strong>
+        <span>admin@demo.it · demo123</span>
+      </div>
+    </div>
+  </section>
+
+  <div id="appView" class="app hidden">
+    <aside class="sidebar">
+      <div class="sidebar-brand">
+        <div class="brand-mark small">TF</div>
+        <div><strong>Turni & Ferie</strong><span>Anno 2026</span></div>
+      </div>
+      <nav id="mainNav">
+        <button class="nav-item active" data-view="dashboard">Dashboard</button>
+        <button class="nav-item" data-view="calendar">Calendario</button>
+        <button class="nav-item" data-view="upcoming">Prossimi sabati</button>
+        <button class="nav-item" data-view="turns">Turni del sabato</button>
+        <button class="nav-item" data-view="leave">Ferie</button>
+        <button class="nav-item" data-view="people">Operatori e GIP</button>
+        <button class="nav-item" data-view="audit">Registro modifiche</button>
+      </nav>
+      <div class="sidebar-footer">
+        <span id="currentUserLabel"></span>
+        <button id="logoutBtn" class="btn ghost">Esci</button>
+      </div>
+    </aside>
+
+    <main class="content">
+      <header class="topbar">
+        <div>
+          <p class="eyebrow">UFFICIO · PIANIFICAZIONE CONDIVISA</p>
+          <h2 id="pageTitle">Dashboard</h2>
+        </div>
+        <div class="top-actions">
+          <span id="todayLabel" class="date-chip"></span>
+          <button id="exportBtn" class="btn secondary">Esporta dati</button>
+        </div>
+      </header>
+
+      <section id="dashboard" class="view active-view">
+        <div id="alerts"></div>
+        <div class="kpi-grid">
+          <article class="kpi"><span>Turni assegnati</span><strong id="kpiTurns">0</strong><small>sabati 2026</small></article>
+          <article class="kpi"><span>GIP Penale</span><strong id="kpiCriminal">0</strong><small>assegnazioni</small></article>
+          <article class="kpi"><span>GIP Civile</span><strong id="kpiCivil">0</strong><small>assegnazioni</small></article>
+          <article class="kpi warning"><span>Conflitti</span><strong id="kpiConflicts">0</strong><small>turno / ferie</small></article>
+        </div>
+
+        <div class="grid two">
+          <article class="panel">
+            <div class="panel-head"><div><p class="eyebrow">PROSSIMA COPERTURA</p><h3>Prossimo sabato</h3></div></div>
+            <div id="nextSaturdayCard" class="next-card"></div>
+          </article>
+          <article class="panel">
+            <div class="panel-head"><div><p class="eyebrow">EQUILIBRIO</p><h3>Turni per operatore</h3></div></div>
+            <div id="operatorBars" class="bars"></div>
+          </article>
+        </div>
+
+        <article class="panel upcoming-panel">
+          <div class="panel-head wrap"><div><p class="eyebrow">PROGRAMMA IMMEDIATO</p><h3>Prossimi sabati</h3></div><button class="btn secondary goto-upcoming" type="button">Vedi elenco completo</button></div>
+          <div id="dashboardUpcoming" class="upcoming-cards"></div>
+        </article>
+
+        <article class="panel leave-overview-panel">
+          <div class="panel-head wrap"><div><p class="eyebrow">ASSENZE PROGRAMMATE</p><h3>Prossime ferie</h3></div><button class="btn secondary goto-leave" type="button">Vedi quadro completo</button></div>
+          <div id="dashboardLeaves" class="leave-cards"></div>
+        </article>
+
+        <div class="grid two">
+          <article class="panel">
+            <div class="panel-head"><div><p class="eyebrow">RIEPILOGO</p><h3>Ferie utilizzate</h3></div></div>
+            <div id="leaveBars" class="bars"></div>
+          </article>
+          <article class="panel">
+            <div class="panel-head"><div><p class="eyebrow">ATTIVITÀ</p><h3>Ultime modifiche</h3></div></div>
+            <div id="recentAudit" class="timeline"></div>
+          </article>
+        </div>
+      </section>
+
+      <section id="calendar" class="view">
+        <article class="panel">
+          <div class="panel-head wrap">
+            <div><p class="eyebrow">VISTA MENSILE</p><h3>Calendario operativo</h3></div>
+            <div class="inline-controls">
+              <button id="prevMonth" class="btn ghost">←</button>
+              <select id="monthSelect"></select>
+              <button id="nextMonth" class="btn ghost">→</button>
+            </div>
+          </div>
+          <div class="legend"><span class="dot green"></span>Turno <span class="dot yellow"></span>Ferie <span class="dot red"></span>Conflitto <span class="dot blue"></span>GIP Civile</div>
+          <div id="calendarGrid" class="calendar-grid"></div>
+        </article>
+      </section>
+
+
+      <section id="upcoming" class="view">
+        <article class="panel">
+          <div class="panel-head wrap">
+            <div><p class="eyebrow">COPERTURA FUTURA</p><h3>Chi è in turno nei prossimi sabati</h3></div>
+            <select id="upcomingCount"><option value="4">Prossimi 4 sabati</option><option value="8" selected>Prossimi 8 sabati</option><option value="12">Prossimi 12 sabati</option><option value="99">Tutti i sabati inseriti</option></select>
+          </div>
+          <div id="upcomingList" class="upcoming-list"></div>
+        </article>
+      </section>
+
+      <section id="turns" class="view">
+        <article class="panel">
+          <div class="panel-head wrap">
+            <div><p class="eyebrow">PROGRAMMAZIONE</p><h3>Turni del sabato</h3></div>
+            <button id="addTurnBtn" class="btn primary">Nuovo turno</button>
+          </div>
+          <div class="filters">
+            <input id="turnSearch" placeholder="Cerca operatore o GIP" />
+            <select id="turnTypeFilter"><option value="">Tutti i tipi GIP</option><option>Penale</option><option>Civile</option></select>
+            <select id="turnStatusFilter"><option value="">Tutti gli stati</option><option>Assegnato</option><option>Da completare</option><option>Conflitto</option></select>
+          </div>
+          <div class="table-wrap"><table><thead><tr><th>Data</th><th>Operatore</th><th>GIP Penale</th><th>GIP Civile</th><th>Stato</th><th>Note</th><th></th></tr></thead><tbody id="turnsBody"></tbody></table></div>
+        </article>
+      </section>
+
+      <section id="leave" class="view">
+        <div class="leave-kpis">
+          <article class="mini-kpi"><span>Periodi inseriti</span><strong id="leavePeriodsKpi">0</strong></article>
+          <article class="mini-kpi"><span>Giorni approvati</span><strong id="leaveDaysKpi">0</strong></article>
+          <article class="mini-kpi"><span>Persone assenti oggi</span><strong id="leaveTodayKpi">0</strong></article>
+          <article class="mini-kpi"><span>Conflitti con turni</span><strong id="leaveConflictsKpi">0</strong></article>
+        </div>
+        <article class="panel leave-visual-panel">
+          <div class="panel-head wrap">
+            <div><p class="eyebrow">PANORAMICA VISIVA</p><h3>Ferie mese per mese</h3></div>
+            <select id="leaveVisualOperator"><option value="">Tutti gli operatori</option></select>
+          </div>
+          <div class="leave-visual-legend">
+            <span><i class="visual-dot one"></i> 1 persona assente</span>
+            <span><i class="visual-dot two"></i> 2 persone assenti</span>
+            <span><i class="visual-dot many"></i> 3 o più persone assenti</span>
+            <span><i class="visual-dot conflict"></i> Conflitto con turno</span>
+          </div>
+          <div id="leaveHistogram" class="leave-histogram"></div>
+          <div class="annual-calendar-head"><strong>Calendario annuale 2026</strong><small>Tocca o passa sopra un giorno per vedere chi è assente</small></div>
+          <div id="leaveAnnualCalendar" class="leave-annual-calendar"></div>
+        </article>
+
+        <article class="panel">
+          <div class="panel-head wrap">
+            <div><p class="eyebrow">QUADRO GENERALE</p><h3>Ferie programmate</h3></div>
+            <button id="addLeaveBtn" class="btn primary">Inserisci ferie</button>
+          </div>
+          <div class="filters leave-filters">
+            <input id="leaveSearch" placeholder="Cerca operatore o nota" />
+            <select id="leaveOperatorFilter"><option value="">Tutti gli operatori</option></select>
+            <select id="leaveStatusFilter"><option value="">Tutti gli stati</option><option>Richiesta</option><option>Approvata</option><option>Rifiutata</option></select>
+            <select id="leaveTimeFilter"><option value="all">Tutti i periodi</option><option value="current">In corso</option><option value="future" selected>Future</option><option value="past">Concluse</option></select>
+          </div>
+          <div id="leaveOverview" class="leave-wide-list"></div>
+          <details class="leave-table-details"><summary>Apri tabella completa</summary><div class="table-wrap"><table><thead><tr><th>Operatore</th><th>Dal</th><th>Al</th><th>Giorni</th><th>Stato</th><th>Note</th><th></th></tr></thead><tbody id="leaveBody"></tbody></table></div></details>
+        </article>
+      </section>
+
+      <section id="people" class="view">
+        <div class="grid three">
+          <article class="panel"><div class="panel-head"><div><p class="eyebrow">PERSONALE</p><h3>Operatori</h3></div><button class="btn ghost add-person" data-type="operator">+</button></div><div id="operatorsList" class="people-list"></div></article>
+          <article class="panel"><div class="panel-head"><div><p class="eyebrow">MAGISTRATI</p><h3>GIP Penale</h3></div><button class="btn ghost add-person" data-type="gipPenale">+</button></div><div id="criminalList" class="people-list"></div></article>
+          <article class="panel"><div class="panel-head"><div><p class="eyebrow">MAGISTRATI</p><h3>GIP Civile</h3></div><button class="btn ghost add-person" data-type="gipCivile">+</button></div><div id="civilList" class="people-list"></div></article>
+        </div>
+      </section>
+
+      <section id="audit" class="view">
+        <article class="panel"><div class="panel-head"><div><p class="eyebrow">TRACCIABILITÀ</p><h3>Registro modifiche</h3></div></div><div id="auditList" class="timeline"></div></article>
+      </section>
+    </main>
+  </div>
+
+  <button id="profileFab" class="profile-fab" type="button" aria-label="Modifica account e profilo" title="Account e profilo">
+    <span id="profileFabInitials" class="profile-fab-avatar">A</span>
+    <span class="profile-fab-text"><strong>Profilo</strong><small>Account</small></span>
+    <span class="profile-fab-icon">⚙</span>
+  </button>
+
+  <dialog id="turnDialog">
+    <form id="turnForm" method="dialog" class="modal-form">
+      <div class="modal-head"><h3 id="turnDialogTitle">Nuovo turno</h3><button class="icon-btn" value="cancel">×</button></div>
+      <input id="turnId" type="hidden" />
+      <label>Sabato<input id="turnDate" type="date" required /></label>
+      <label>Operatore<select id="turnOperator" required></select></label>
+      <div class="grid two compact"><label>GIP Penale<select id="turnCriminal"></select></label><label>GIP Civile<select id="turnCivil"></select></label></div>
+      <label>Note<textarea id="turnNotes" rows="3"></textarea></label>
+      <div class="modal-actions"><button class="btn ghost" value="cancel">Annulla</button><button id="saveTurnBtn" class="btn primary" value="default">Salva turno</button></div>
+    </form>
+  </dialog>
+
+  <dialog id="leaveDialog">
+    <form id="leaveForm" method="dialog" class="modal-form">
+      <div class="modal-head"><h3 id="leaveDialogTitle">Inserisci ferie</h3><button class="icon-btn" value="cancel">×</button></div>
+      <input id="leaveId" type="hidden" />
+      <label>Operatore<select id="leaveOperator" required></select></label>
+      <div class="grid two compact"><label>Dal<input id="leaveStart" type="date" required /></label><label>Al<input id="leaveEnd" type="date" required /></label></div>
+      <label>Stato<select id="leaveStatus"><option>Richiesta</option><option>Approvata</option><option>Rifiutata</option></select></label>
+      <label>Note<textarea id="leaveNotes" rows="3"></textarea></label>
+      <div class="modal-actions"><button class="btn ghost" value="cancel">Annulla</button><button class="btn primary" value="default">Salva ferie</button></div>
+    </form>
+  </dialog>
+
+  <dialog id="personDialog"><form id="personForm" class="modal-form"><div class="modal-head"><h3 id="personDialogTitle">Aggiungi nominativo</h3><button class="icon-btn close-person" type="button" aria-label="Chiudi">×</button></div><input id="personType" type="hidden"/><label>Nome e cognome<input id="personName" type="text" autocomplete="off" required/></label><p id="personHelp" class="muted person-help"></p><div class="modal-actions"><button class="btn ghost close-person" type="button">Annulla</button><button class="btn primary" type="submit">Aggiungi</button></div></form></dialog>
+
+  <dialog id="profileDialog">
+    <form id="profileForm" class="modal-form">
+      <div class="modal-head">
+        <div>
+          <p class="eyebrow">ACCOUNT PERSONALE</p>
+          <h3>Modifica profilo</h3>
+        </div>
+        <button type="button" class="icon-btn close-profile" aria-label="Chiudi">×</button>
+      </div>
+      <div class="profile-modal-head">
+        <div id="profileModalAvatar" class="profile-modal-avatar">A</div>
+        <div><strong id="profileRoleLabel">Amministratore</strong><small>Ruolo assegnato</small></div>
+      </div>
+      <label>Nome visualizzato
+        <input id="profileName" autocomplete="name" required />
+      </label>
+      <label>Email di accesso
+        <input id="profileEmail" type="email" autocomplete="email" required />
+      </label>
+      <div class="profile-password-grid">
+        <label>Nuova password
+          <input id="profilePassword" type="password" autocomplete="new-password" minlength="6" placeholder="Lascia vuoto per non cambiarla" />
+        </label>
+        <label>Conferma password
+          <input id="profilePasswordConfirm" type="password" autocomplete="new-password" minlength="6" placeholder="Ripeti la nuova password" />
+        </label>
+      </div>
+      <p class="muted profile-help">Le modifiche vengono salvate su questo dispositivo. Quando l’app sarà collegata al database, saranno sincronizzate per ogni account.</p>
+      <div class="modal-actions">
+        <button type="button" class="btn ghost close-profile">Annulla</button>
+        <button type="submit" class="btn primary">Salva profilo</button>
+      </div>
+    </form>
+  </dialog>
+
+  <script src="app.js"></script>
+</body>
+</html>
