@@ -1,5 +1,5 @@
 'use strict';
-const APP_VERSION='2.1.0';
+const APP_VERSION='3.1.0';
 const STORAGE_KEY='turni-ferie-2026-v2';
 const SUPABASE_URL='https://ztamohdnmpivcojxyvcv.supabase.co';
 const SUPABASE_PUBLISHABLE_KEY='sb_publishable_4YeUzoSUbtWq57ylQPBIqw_mvCcJsHd';
@@ -148,8 +148,32 @@ function renderLeaveVisuals(){
    for(let day=1;day<=end;day++){const iso=`2026-${String(month+1).padStart(2,'0')}-${String(day).padStart(2,'0')}`;total+=leaveDayInfo(iso,leaves).absent.length}
    return total;
  });
- const max=Math.max(1,...monthTotals);
- histogram.innerHTML=months.map((m,i)=>`<div class="histogram-col"><div class="histogram-value">${monthTotals[i]}</div><div class="histogram-track"><div class="histogram-bar" style="height:${Math.max(monthTotals[i]?8:0,monthTotals[i]/max*100)}%"></div></div><div class="histogram-label">${m.slice(0,3)}</div></div>`).join('');
+ const maxValue=Math.max(1,...monthTotals);
+ const tickStep=maxValue<=12?1:Math.ceil(maxValue/8);
+ const chartMax=Math.max(1,Math.ceil(maxValue/tickStep)*tickStep);
+ const ticks=[];for(let v=chartMax;v>=0;v-=tickStep)ticks.push(v);
+ const monthDetails=months.map((_,month)=>{
+   const byOperator={};
+   const daysInMonth=new Date(2026,month+1,0).getDate();
+   for(let day=1;day<=daysInMonth;day++){
+     const iso=`2026-${String(month+1).padStart(2,'0')}-${String(day).padStart(2,'0')}`;
+     leaveDayInfo(iso,leaves).absent.forEach(l=>{byOperator[l.operator]=(byOperator[l.operator]||0)+1});
+   }
+   return byOperator;
+ });
+ histogram.innerHTML=`
+   <div class="histogram-axis-title">Giorni di ferie</div>
+   <div class="histogram-y-axis">${ticks.map(v=>`<span style="top:${(chartMax-v)/chartMax*100}%">${v}</span>`).join('')}</div>
+   <div class="histogram-plot">
+     <div class="histogram-grid">${ticks.map(v=>`<i style="top:${(chartMax-v)/chartMax*100}%"></i>`).join('')}</div>
+     <div class="histogram-bars">${months.map((m,i)=>{
+       const total=monthTotals[i];
+       const height=total?Math.max(4,total/chartMax*100):0;
+       const detail=Object.entries(monthDetails[i]).sort((a,b)=>b[1]-a[1]).map(([name,value])=>`${name}: ${value} ${value===1?'giorno':'giorni'}`).join(' · ');
+       const tooltip=`${m}: ${total} ${total===1?'giorno':'giorni'}${detail?' — '+detail:''}`;
+       return `<div class="histogram-col" tabindex="0" title="${tooltip.replace(/"/g,'&quot;')}" aria-label="${tooltip.replace(/"/g,'&quot;')}"><div class="histogram-value">${total||''}</div><div class="histogram-track"><div class="histogram-bar" style="height:${height}%"></div></div><div class="histogram-label">${m.slice(0,3)}</div></div>`;
+     }).join('')}</div>
+   </div>`;
  calendar.innerHTML=months.map((monthName,month)=>{
    const first=new Date(2026,month,1),days=new Date(2026,month+1,0).getDate(),offset=(first.getDay()+6)%7;
    let cells=['L','M','M','G','V','S','D'].map(d=>`<span class="annual-weekday">${d}</span>`).join('');
