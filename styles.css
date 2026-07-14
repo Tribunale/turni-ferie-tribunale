@@ -45,3 +45,5 @@
 .login-status.success{color:#247048;font-weight:700}
 .login-card .btn[disabled]{opacity:.65;cursor:wait}
 .unassigned{color:#9ca8b3!important;font-weight:400!important;font-size:.86em!important;background:transparent!important;border:0!important;padding:0!important}
+
+.form-status{min-height:20px;margin:0;font-size:13px;font-weight:600}.form-status.success{color:#087443}.form-status.error{color:#b42318}

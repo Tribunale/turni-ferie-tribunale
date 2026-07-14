@@ -259,10 +259,11 @@
           <input id="profilePasswordConfirm" type="password" autocomplete="new-password" minlength="6" placeholder="Ripeti la nuova password" />
         </label>
       </div>
-      <p class="muted profile-help">Nome, email e password vengono aggiornati nell’account Supabase. La modifica dell’email può richiedere una conferma tramite messaggio.</p>
+      <p class="muted profile-help">Nome, email e password vengono aggiornati nell’account Supabase. Dopo il cambio password verrai disconnesso e dovrai rientrare con la nuova password.</p>
+      <p id="profileStatus" class="form-status" role="status" aria-live="polite"></p>
       <div class="modal-actions">
         <button type="button" class="btn ghost close-profile">Annulla</button>
-        <button type="submit" class="btn primary">Salva profilo</button>
+        <button id="profileSaveBtn" type="submit" class="btn primary">Salva profilo</button>
       </div>
     </form>
   </dialog>

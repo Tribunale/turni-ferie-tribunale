@@ -1,5 +1,5 @@
 'use strict';
-const APP_VERSION='2.0.0';
+const APP_VERSION='2.1.0';
 const STORAGE_KEY='turni-ferie-2026-v2';
 const SUPABASE_URL='https://ztamohdnmpivcojxyvcv.supabase.co';
 const SUPABASE_PUBLISHABLE_KEY='sb_publishable_4YeUzoSUbtWq57ylQPBIqw_mvCcJsHd';
@@ -73,7 +73,7 @@ function audit(action){state.audit.unshift({id:uid('a'),when:new Date().toISOStr
 function toast(msg){const t=$('#toast');t.textContent=msg;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),2200)}
 function initials(name=''){return name.trim().split(/\s+/).filter(Boolean).slice(0,2).map(x=>x[0]?.toUpperCase()||'').join('')||'U'}
 function refreshProfileUi(){if(!currentUser)return;$('#currentUserLabel').textContent=`${currentUser.name} · ${currentUser.role}`;$('#profileFabInitials').textContent=initials(currentUser.name)}
-function openProfile(){if(!currentUser)return;$('#profileName').value=currentUser.name||'';$('#profileEmail').value=currentUser.email||'';$('#profilePassword').value='';$('#profilePasswordConfirm').value='';$('#profileRoleLabel').textContent=currentUser.role||'Utente';$('#profileModalAvatar').textContent=initials(currentUser.name);$('#profileDialog').showModal();setTimeout(()=>$('#profileName').focus(),50)}
+function openProfile(){if(!currentUser)return;$('#profileName').value=currentUser.name||'';$('#profileEmail').value=currentUser.email||'';$('#profilePassword').value='';$('#profilePasswordConfirm').value='';$('#profileRoleLabel').textContent=currentUser.role||'Utente';$('#profileModalAvatar').textContent=initials(currentUser.name);const status=$('#profileStatus');if(status){status.textContent='';status.className='form-status'}$('#profileDialog').showModal();setTimeout(()=>$('#profileName').focus(),50)}
 
 function getConflict(turn){return state.leaves.some(l=>l.status==='Approvata'&&l.operator===turn.operator&&between(turn.date,l.start,l.end))}
 function turnStatus(t){if(getConflict(t))return 'Conflitto';if(!t.operator||(!t.gipPenale&&!t.gipCivile))return 'Da completare';return 'Assegnato'}
@@ -233,7 +233,58 @@ $('#loginForm').addEventListener('submit',async e=>{
 
 $('#profileFab').onclick=openProfile;
 $$('.close-profile').forEach(b=>b.addEventListener('click',()=>$('#profileDialog').close()));
-$('#profileForm').addEventListener('submit',async e=>{e.preventDefault();if(!currentUser)return;const name=$('#profileName').value.trim();const email=$('#profileEmail').value.trim().toLowerCase();const oldEmail=currentUser.email;const password=$('#profilePassword').value,confirmPassword=$('#profilePasswordConfirm').value;if(!name||!email)return toast('Inserisci nome ed email');if(password&&password.length<6)return toast('La password deve avere almeno 6 caratteri');if(password!==confirmPassword)return toast('Le password non coincidono');const {error:pErr}=await supabaseClient.from('profili').update({nome,email}).eq('id',currentUser.id);if(pErr)return toast(`Errore: ${pErr.message}`);const changes={};if(email!==oldEmail)changes.email=email;if(password)changes.password=password;if(Object.keys(changes).length){const {error:aErr}=await supabaseClient.auth.updateUser(changes);if(aErr)return toast(`Errore account: ${aErr.message}`)}currentUser.name=name;currentUser.email=email;refreshProfileUi();$('#profileDialog').close();toast(email!==oldEmail?'Controlla la nuova email per confermare':'Profilo aggiornato')});
+$('#profileForm').addEventListener('submit',async e=>{
+  e.preventDefault();
+  if(!currentUser)return;
+  const name=$('#profileName').value.trim();
+  const email=$('#profileEmail').value.trim().toLowerCase();
+  const oldEmail=currentUser.email;
+  const password=$('#profilePassword').value;
+  const confirmPassword=$('#profilePasswordConfirm').value;
+  const status=$('#profileStatus');
+  const saveBtn=$('#profileSaveBtn');
+  const setStatus=(message,type='')=>{status.textContent=message;status.className=`form-status ${type}`.trim()};
+  if(!name||!email)return setStatus('Inserisci nome ed email.','error');
+  if(password&&password.length<8)return setStatus('La nuova password deve avere almeno 8 caratteri.','error');
+  if(password!==confirmPassword)return setStatus('Le due password non coincidono.','error');
+  saveBtn.disabled=true;
+  saveBtn.textContent='Salvataggio…';
+  setStatus('Aggiornamento dell’account in corso…');
+  try{
+    const authChanges={};
+    if(email!==oldEmail)authChanges.email=email;
+    if(password)authChanges.password=password;
+    if(Object.keys(authChanges).length){
+      const {error:aErr}=await supabaseClient.auth.updateUser(authChanges);
+      if(aErr)throw new Error(`Account: ${aErr.message}`);
+    }
+    const {error:pErr}=await supabaseClient.from('profili').update({nome,email}).eq('id',currentUser.id);
+    if(pErr)throw new Error(`Profilo: ${pErr.message}`);
+    currentUser.name=name;
+    currentUser.email=email;
+    refreshProfileUi();
+    if(password){
+      setStatus('Password modificata correttamente. Tra pochi secondi verrai disconnesso: rientra usando la nuova password.','success');
+      saveBtn.textContent='Password aggiornata';
+      $('#profilePassword').value='';
+      $('#profilePasswordConfirm').value='';
+      setTimeout(async()=>{await supabaseClient.auth.signOut();location.reload()},2500);
+      return;
+    }
+    if(email!==oldEmail){
+      setStatus('Richiesta di cambio email registrata. Controlla la nuova casella di posta per confermare.','success');
+    }else{
+      setStatus('Profilo aggiornato correttamente.','success');
+    }
+    saveBtn.textContent='Salvato';
+    setTimeout(()=>$('#profileDialog').close(),1400);
+  }catch(err){
+    console.error('Profile update error',err);
+    setStatus(`Modifica non riuscita: ${err.message||'errore sconosciuto'}`,'error');
+  }finally{
+    if(!password){saveBtn.disabled=false;setTimeout(()=>saveBtn.textContent='Salva profilo',1500)}
+  }
+});
 $('#logoutBtn').onclick=async()=>{await supabaseClient.auth.signOut();location.reload()};
 $('#mainNav').onclick=e=>{const b=e.target.closest('.nav-item');if(!b)return;$$('.nav-item').forEach(x=>x.classList.remove('active'));b.classList.add('active');$$('.view').forEach(x=>x.classList.remove('active-view'));$('#'+b.dataset.view).classList.add('active-view');$('#pageTitle').textContent=b.textContent};
 $('#addTurnBtn').onclick=()=>openTurn();$('#addLeaveBtn').onclick=()=>openLeave();
