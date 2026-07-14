@@ -1,7 +1,3 @@
-# Turni e Ferie Tribunale — versione 2.1
+# Turni & Ferie — Versione 3
 
-Correzioni principali:
-- cambio password con conferma visibile;
-- logout automatico dopo il cambio password;
-- messaggi di errore nel pannello profilo;
-- cache aggiornata.
+Restyling minimal istituzionale. Logica, dati Supabase e funzionalità della versione 2.1 restano invariati.
