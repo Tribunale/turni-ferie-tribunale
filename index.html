@@ -10,6 +10,7 @@
 </head>
 <body>
   <div id="toast" class="toast" aria-live="polite"></div>
+  <div id="calendarTooltip" class="calendar-tooltip" role="tooltip"></div>
 
   <section id="loginView" class="login-view">
     <div class="login-card">
@@ -19,14 +20,17 @@
       <p class="muted">Calendario condiviso per operatori, ferie e turnazione GIP Penale/Civile.</p>
       <form id="loginForm" class="stack">
         <label>Email
-          <input id="loginEmail" type="email" value="micheledoris@proton.me" required autocomplete="username" />
+          <input id="loginEmail" type="email" value="admin@demo.it" required />
         </label>
         <label>Password
-          <input id="loginPassword" type="password" required autocomplete="current-password" />
+          <input id="loginPassword" type="password" value="demo123" required />
         </label>
         <button class="btn primary" type="submit">Accedi</button>
       </form>
-      <div class="demo-box"><strong>Accesso riservato</strong><span>Usa l’account autorizzato dall’amministratore.</span></div>
+      <div class="demo-box">
+        <strong>Accesso demo</strong>
+        <span>admin@demo.it · demo123</span>
+      </div>
     </div>
   </section>
 
@@ -266,7 +270,6 @@
     </form>
   </dialog>
 
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="app.js"></script>
 </body>
 </html>

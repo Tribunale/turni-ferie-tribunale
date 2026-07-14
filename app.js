@@ -66,13 +66,14 @@ function openProfile(){if(!currentUser)return;$('#profileName').value=currentUse
 function getConflict(turn){return state.leaves.some(l=>l.status==='Approvata'&&l.operator===turn.operator&&between(turn.date,l.start,l.end))}
 function turnStatus(t){if(getConflict(t))return 'Conflitto';if(!t.operator||(!t.gipPenale&&!t.gipCivile))return 'Da completare';return 'Assegnato'}
 function badge(status){const c=status==='Assegnato'||status==='Approvata'?'green':status==='Conflitto'||status==='Rifiutata'?'red':'yellow';return `<span class="badge ${c}">${status}</span>`}
+function assignmentValue(value,label='Da assegnare'){return value||`<span class="unassigned">${label}</span>`}
 function optionList(items,selected='',placeholder='Nessuno'){return `<option value="">${placeholder}</option>`+items.map(x=>`<option ${x===selected?'selected':''}>${x}</option>`).join('')}
 function renderAll(){renderDashboard();renderUpcoming();renderTurns();renderLeaves();renderLeaveVisuals();renderPeople();renderAudit();renderCalendar();fillSelects()}
 function renderDashboard(){
  const conflicts=state.turns.filter(getConflict).length;$('#kpiTurns').textContent=state.turns.length;$('#kpiCriminal').textContent=state.turns.filter(t=>t.gipPenale).length;$('#kpiCivil').textContent=state.turns.filter(t=>t.gipCivile).length;$('#kpiConflicts').textContent=conflicts;
  $('#alerts').innerHTML=conflicts?`<div class="alert red">Attenzione: sono presenti ${conflicts} conflitti tra turni e ferie approvate.</div>`:`<div class="alert green">Nessun conflitto rilevato tra turni e ferie approvate.</div>`;
  const today=new Date().toISOString().slice(0,10); const next=state.turns.filter(t=>t.date>=today).sort((a,b)=>a.date.localeCompare(b.date))[0];
- $('#nextSaturdayCard').innerHTML=next?`<div class="next-date">${fmtDate(next.date,{weekday:'long',day:'2-digit',month:'long'})}</div><div class="assignment-grid"><div class="assignment"><span>Operatore</span><strong>${next.operator||'Da assegnare'}</strong></div><div class="assignment"><span>GIP Penale</span><strong>${next.gipPenale||'Da assegnare'}</strong></div><div class="assignment"><span>GIP Civile</span><strong>${next.gipCivile||'Da assegnare'}</strong></div></div>${next.notes?`<p class="muted">${next.notes}</p>`:''}`:'<p>Nessun turno futuro inserito.</p>';
+ $('#nextSaturdayCard').innerHTML=next?`<div class="next-date">${fmtDate(next.date,{weekday:'long',day:'2-digit',month:'long'})}</div><div class="assignment-grid"><div class="assignment"><span>Operatore</span><strong>${assignmentValue(next.operator)}</strong></div><div class="assignment"><span>GIP Penale</span><strong>${assignmentValue(next.gipPenale)}</strong></div><div class="assignment"><span>GIP Civile</span><strong>${assignmentValue(next.gipCivile)}</strong></div></div>${next.notes?`<p class="muted">${next.notes}</p>`:''}`:'<p>Nessun turno futuro inserito.</p>';
  const counts=state.operators.map(o=>({name:o,value:state.turns.filter(t=>t.operator===o).length})); renderBars('#operatorBars',counts);
  const leaveCounts=state.operators.map(o=>({name:o,value:state.leaves.filter(l=>l.operator===o&&l.status!=='Rifiutata').reduce((s,l)=>s+daysInclusive(l.start,l.end),0)}));renderBars('#leaveBars',leaveCounts);
  $('#dashboardUpcoming').innerHTML=upcomingCardsHtml(getUpcomingTurns(4));
@@ -85,7 +86,7 @@ function getUpcomingTurns(limit=8){
  return state.turns.filter(t=>t.date>=today).sort((a,b)=>a.date.localeCompare(b.date)).slice(0,limit===99?undefined:limit);
 }
 function upcomingClass(t){return getConflict(t)?'conflict':turnStatus(t)==='Da completare'?'incomplete':''}
-function upcomingCardsHtml(items){return items.map(t=>`<article class="upcoming-card ${upcomingClass(t)}"><div class="upcoming-date">${fmtDate(t.date,{weekday:'long',day:'2-digit',month:'long'})}</div><dl><div><dt>Operatore</dt><dd>${t.operator||'Da assegnare'}</dd></div><div><dt>GIP Penale</dt><dd>${t.gipPenale||'Da assegnare'}</dd></div><div><dt>GIP Civile</dt><dd>${t.gipCivile||'Da assegnare'}</dd></div></dl><div style="margin-top:12px">${badge(turnStatus(t))}</div></article>`).join('')||'<p class="muted">Non ci sono turni futuri inseriti.</p>'}
+function upcomingCardsHtml(items){return items.map(t=>`<article class="upcoming-card ${upcomingClass(t)}"><div class="upcoming-date">${fmtDate(t.date,{weekday:'long',day:'2-digit',month:'long'})}</div><dl><div><dt>Operatore</dt><dd>${assignmentValue(t.operator)}</dd></div><div><dt>GIP Penale</dt><dd>${assignmentValue(t.gipPenale)}</dd></div><div><dt>GIP Civile</dt><dd>${assignmentValue(t.gipCivile)}</dd></div></dl><div style="margin-top:12px">${badge(turnStatus(t))}</div></article>`).join('')||'<p class="muted">Non ci sono turni futuri inseriti.</p>'}
 function getUpcomingLeaves(limit=4){
  const today=new Date().toISOString().slice(0,10);
  return state.leaves.filter(l=>l.status!=='Rifiutata'&&l.end>=today).sort((a,b)=>a.start.localeCompare(b.start)).slice(0,limit);
@@ -96,7 +97,7 @@ function leaveCardsHtml(items){return items.map(l=>`<article class="leave-card $
 function renderUpcoming(){
  const limit=Number($('#upcomingCount')?.value||8);
  const items=getUpcomingTurns(limit);
- $('#upcomingList').innerHTML=items.map(t=>`<div class="upcoming-row ${upcomingClass(t)}"><div class="upcoming-cell"><span>Sabato</span><strong>${fmtDate(t.date,{weekday:'long',day:'2-digit',month:'long',year:'numeric'})}</strong></div><div class="upcoming-cell"><span>Operatore</span><strong>${t.operator||'Da assegnare'}</strong></div><div class="upcoming-cell"><span>GIP Penale</span><strong>${t.gipPenale||'Da assegnare'}</strong></div><div class="upcoming-cell civil-cell"><span>GIP Civile</span><strong>${t.gipCivile||'Da assegnare'}</strong></div><div class="upcoming-cell status-cell">${badge(turnStatus(t))}</div></div>`).join('')||'<p class="muted">Non ci sono turni futuri inseriti.</p>';
+ $('#upcomingList').innerHTML=items.map(t=>`<div class="upcoming-row ${upcomingClass(t)}"><div class="upcoming-cell"><span>Sabato</span><strong>${fmtDate(t.date,{weekday:'long',day:'2-digit',month:'long',year:'numeric'})}</strong></div><div class="upcoming-cell"><span>Operatore</span><strong>${assignmentValue(t.operator)}</strong></div><div class="upcoming-cell"><span>GIP Penale</span><strong>${assignmentValue(t.gipPenale)}</strong></div><div class="upcoming-cell civil-cell"><span>GIP Civile</span><strong>${assignmentValue(t.gipCivile)}</strong></div><div class="upcoming-cell status-cell">${badge(turnStatus(t))}</div></div>`).join('')||'<p class="muted">Non ci sono turni futuri inseriti.</p>';
 }
 
 function renderBars(sel,data){const max=Math.max(...data.map(x=>x.value),1);$(sel).innerHTML=data.map(x=>`<div class="bar-row"><span>${x.name.split(' ')[0]}</span><div class="bar-track"><div class="bar-fill" style="width:${x.value/max*100}%"></div></div><strong>${x.value}</strong></div>`).join('')}
@@ -144,17 +145,50 @@ function renderLeaveVisuals(){
    for(let day=1;day<=days;day++){
      const iso=`2026-${String(month+1).padStart(2,'0')}-${String(day).padStart(2,'0')}`;const info=leaveDayInfo(iso,leaves);
      const count=info.absent.length;const cls=info.conflicts.length?'conflict':count>=3?'many':count===2?'two':count===1?'one':'';
-     const names=info.absent.map(l=>l.operator).join(', ');const title=names?`${day} ${monthName}: ${names}${info.conflicts.length?' · CONFLITTO TURNO':''}`:`${day} ${monthName}: nessuna assenza`;
-     cells+=`<span class="annual-day ${cls}" title="${title.replace(/"/g,'&quot;')}" tabindex="0"><b>${day}</b>${count?`<small>${count}</small>`:''}</span>`;
+     const absentNames=info.absent.map(l=>l.operator);
+     const turn=state.turns.find(t=>t.date===iso);
+     const details={date:`${day} ${monthName} 2026`,absent:absentNames,conflict:info.conflicts.length>0,operator:turn?.operator||'',gipPenale:turn?.gipPenale||'',gipCivile:turn?.gipCivile||''};
+     cells+=`<span class="annual-day ${cls}" data-details="${encodeURIComponent(JSON.stringify(details))}" tabindex="0" aria-label="Dettagli ${day} ${monthName}"><b>${day}</b>${count?`<small>${count}</small>`:''}</span>`;
    }
    return `<article class="annual-month"><h4>${monthName}</h4><div class="annual-month-grid">${cells}</div></article>`;
  }).join('');
+ setupAnnualDayTooltips();
 }
 function renderPeople(){renderPeopleList('#operatorsList',state.operators,'operator');renderPeopleList('#criminalList',state.gipPenale,'gipPenale');renderPeopleList('#civilList',state.gipCivile,'gipCivile')}
 function renderPeopleList(sel,items,type){$(sel).innerHTML=items.map((x,i)=>`<div class="person-row"><span>${x}</span><button class="icon-btn delete-person" data-type="${type}" data-index="${i}">×</button></div>`).join('')}
 function timelineHtml(items){return items.map(a=>`<div class="timeline-item"><strong>${a.action}</strong><small>${a.user} · ${new Intl.DateTimeFormat('it-IT',{dateStyle:'short',timeStyle:'short'}).format(new Date(a.when))}</small></div>`).join('')||'<p class="muted">Nessuna modifica registrata.</p>'}
 function renderAudit(){$('#auditList').innerHTML=timelineHtml(state.audit)}
-function renderCalendar(){const year=2026,month=calendarMonth;$('#monthSelect').value=String(month);const first=new Date(year,month,1),last=new Date(year,month+1,0);const start=(first.getDay()+6)%7;let html=['Lun','Mar','Mer','Gio','Ven','Sab','Dom'].map(x=>`<div class="calendar-cell calendar-head">${x}</div>`).join('');for(let i=0;i<42;i++){const day=i-start+1;const d=new Date(year,month,day);const inMonth=day>=1&&day<=last.getDate();const iso=d.toISOString().slice(0,10);const turn=state.turns.find(t=>t.date===iso);const leaves=state.leaves.filter(l=>l.status!=='Rifiutata'&&between(iso,l.start,l.end));let pills='';if(turn){pills+=`<div class="event-pill ${getConflict(turn)?'conflict':'turn'}">${turn.operator||'Turno da assegnare'}</div>`;if(turn.gipPenale)pills+=`<div class="event-pill turn">P: ${turn.gipPenale}</div>`;if(turn.gipCivile)pills+=`<div class="event-pill civil">C: ${turn.gipCivile}</div>`}leaves.forEach(l=>pills+=`<div class="event-pill leave">Ferie: ${l.operator.split(' ')[0]}</div>`);html+=`<div class="calendar-cell ${inMonth?'':'muted-day'}"><div class="day-number">${d.getDate()}</div>${pills}</div>`}$('#calendarGrid').innerHTML=html}
+
+function setupAnnualDayTooltips(){
+ const tooltip=$('#calendarTooltip');if(!tooltip)return;
+ const show=(el,e)=>{
+   let details;try{details=JSON.parse(decodeURIComponent(el.dataset.details||''))}catch{return}
+   const ferie=details.absent?.length?`<div><strong>In ferie</strong>${details.absent.map(n=>`<span>${n}</span>`).join('')}</div>`:'<div><strong>Ferie</strong><span>Nessuna persona assente</span></div>';
+   const turno=(details.operator||details.gipPenale||details.gipCivile)?`<div class="tooltip-turn"><strong>Turno</strong><span>Operatore: ${details.operator||'da assegnare'}</span><span>GIP Penale: ${details.gipPenale||'da assegnare'}</span>${details.gipCivile?`<span>GIP Civile: ${details.gipCivile}</span>`:''}</div>`:'';
+   const conflict=details.conflict?'<div class="tooltip-conflict">⚠ Conflitto tra turno e ferie</div>':'';
+   tooltip.innerHTML=`<b class="tooltip-date">${details.date}</b>${ferie}${turno}${conflict}`;
+   tooltip.classList.add('show');positionCalendarTooltip(e,el,tooltip);
+ };
+ const hide=()=>tooltip.classList.remove('show');
+ $$('.annual-day[data-details]').forEach(el=>{
+   el.addEventListener('mouseenter',e=>show(el,e));
+   el.addEventListener('mousemove',e=>positionCalendarTooltip(e,el,tooltip));
+   el.addEventListener('mouseleave',hide);
+   el.addEventListener('focus',e=>show(el,e));
+   el.addEventListener('blur',hide);
+   el.addEventListener('click',e=>{e.preventDefault();show(el,e)});
+ });
+}
+function positionCalendarTooltip(e,el,tooltip){
+ const pad=14,rect=el.getBoundingClientRect();let x=(e?.clientX||rect.left+rect.width/2)+14;let y=(e?.clientY||rect.top)-12;
+ const w=tooltip.offsetWidth||230,h=tooltip.offsetHeight||120;
+ if(x+w>window.innerWidth-pad)x=Math.max(pad,(e?.clientX||rect.left)-w-14);
+ if(y+h>window.innerHeight-pad)y=Math.max(pad,window.innerHeight-h-pad);
+ if(y<pad)y=pad;
+ tooltip.style.left=`${x}px`;tooltip.style.top=`${y}px`;
+}
+
+function renderCalendar(){const year=2026,month=calendarMonth;$('#monthSelect').value=String(month);const first=new Date(year,month,1),last=new Date(year,month+1,0);const start=(first.getDay()+6)%7;let html=['Lun','Mar','Mer','Gio','Ven','Sab','Dom'].map(x=>`<div class="calendar-cell calendar-head">${x}</div>`).join('');for(let i=0;i<42;i++){const day=i-start+1;const d=new Date(year,month,day);const inMonth=day>=1&&day<=last.getDate();const iso=d.toISOString().slice(0,10);const turn=state.turns.find(t=>t.date===iso);const leaves=state.leaves.filter(l=>l.status!=='Rifiutata'&&between(iso,l.start,l.end));let pills='';if(turn){pills+=`<div class="event-pill ${getConflict(turn)?'conflict':'turn'}">${turn.operator||'<span class="unassigned">Turno da assegnare</span>'}</div>`;if(turn.gipPenale)pills+=`<div class="event-pill turn">P: ${turn.gipPenale}</div>`;if(turn.gipCivile)pills+=`<div class="event-pill civil">C: ${turn.gipCivile}</div>`}leaves.forEach(l=>pills+=`<div class="event-pill leave">Ferie: ${l.operator.split(' ')[0]}</div>`);html+=`<div class="calendar-cell ${inMonth?'':'muted-day'}"><div class="day-number">${d.getDate()}</div>${pills}</div>`}$('#calendarGrid').innerHTML=html}
 function fillSelects(){$('#turnOperator').innerHTML=optionList(state.operators,'','Seleziona operatore');$('#turnCriminal').innerHTML=optionList(state.gipPenale);$('#turnCivil').innerHTML=optionList(state.gipCivile);$('#leaveOperator').innerHTML=optionList(state.operators,'','Seleziona operatore');const f=$('#leaveOperatorFilter');if(f){const current=f.value;f.innerHTML='<option value="">Tutti gli operatori</option>'+state.operators.map(x=>`<option ${x===current?'selected':''}>${x}</option>`).join('')}}
 function openTurn(id){const t=state.turns.find(x=>x.id===id)||{id:'',date:'',operator:'',gipPenale:'',gipCivile:'',notes:''};$('#turnDialogTitle').textContent=id?'Modifica turno':'Nuovo turno';$('#turnId').value=t.id;$('#turnDate').value=t.date;$('#turnOperator').innerHTML=optionList(state.operators,t.operator,'Seleziona operatore');$('#turnCriminal').innerHTML=optionList(state.gipPenale,t.gipPenale);$('#turnCivil').innerHTML=optionList(state.gipCivile,t.gipCivile);$('#turnNotes').value=t.notes;$('#turnDialog').showModal()}
 function openLeave(id){const l=state.leaves.find(x=>x.id===id)||{id:'',operator:'',start:'',end:'',status:'Richiesta',notes:''};$('#leaveDialogTitle').textContent=id?'Modifica ferie':'Inserisci ferie';$('#leaveId').value=l.id;$('#leaveOperator').innerHTML=optionList(state.operators,l.operator,'Seleziona operatore');$('#leaveStart').value=l.start;$('#leaveEnd').value=l.end;$('#leaveStatus').value=l.status;$('#leaveNotes').value=l.notes;$('#leaveDialog').showModal()}

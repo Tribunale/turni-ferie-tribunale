@@ -22,3 +22,19 @@
 .profile-modal-head>div:last-child{display:grid;gap:3px}.profile-modal-head small{color:var(--muted)}
 .profile-password-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}.profile-help{margin:0;font-size:12px}
 @media(max-width:760px){.profile-fab{right:14px;bottom:14px;padding:8px}.profile-fab-text,.profile-fab-icon{display:none}.profile-fab-avatar{width:42px;height:42px}.profile-password-grid{grid-template-columns:1fr}}
+
+
+/* Migliorie leggibilità: valori non assegnati e tooltip calendario */
+.unassigned{color:#94a1ad;font-weight:500!important;font-size:.9em;letter-spacing:0}
+.assignment .unassigned,.upcoming-cell .unassigned,.upcoming-card .unassigned{color:#9aa6b1;font-weight:500!important}
+.event-pill .unassigned{color:inherit;font-weight:500!important;opacity:.72}
+.annual-day{cursor:pointer}
+.calendar-tooltip{position:fixed;z-index:1000;display:none;width:min(270px,calc(100vw - 28px));background:#102943;color:#fff;border-radius:13px;padding:13px 14px;box-shadow:0 18px 45px rgba(15,39,66,.32);pointer-events:none;font-size:12px;line-height:1.4}
+.calendar-tooltip.show{display:grid;gap:9px}
+.calendar-tooltip .tooltip-date{font-size:14px;padding-bottom:7px;border-bottom:1px solid rgba(255,255,255,.18)}
+.calendar-tooltip div{display:grid;gap:2px}
+.calendar-tooltip div strong{font-size:10px;text-transform:uppercase;letter-spacing:.07em;color:#bcd2e5;margin-bottom:2px}
+.calendar-tooltip div span{display:block}
+.calendar-tooltip .tooltip-turn{padding-top:7px;border-top:1px solid rgba(255,255,255,.14)}
+.calendar-tooltip .tooltip-conflict{display:block;background:#a92e45;border-radius:8px;padding:7px 9px;font-weight:800}
+@media(max-width:650px){.calendar-tooltip{font-size:13px}}
