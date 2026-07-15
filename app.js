@@ -1,5 +1,5 @@
 'use strict';
-const APP_VERSION='4.3.0';
+const APP_VERSION='4.4.0';
 const STORAGE_KEY='turni-ferie-2026-v2';
 const SUPABASE_URL='https://ztamohdnmpivcojxyvcv.supabase.co';
 const SUPABASE_PUBLISHABLE_KEY='sb_publishable_4YeUzoSUbtWq57ylQPBIqw_mvCcJsHd';
@@ -80,6 +80,8 @@ function turnStatus(t){if(getConflict(t))return 'Conflitto';if(!t.operator||(!t.
 function badge(status){const c=status==='Assegnato'||status==='Approvata'?'green':status==='Conflitto'||status==='Rifiutata'?'red':'yellow';return `<span class="badge ${c}">${status}</span>`}
 function assignmentValue(value,label='Da assegnare'){return value||`<span class="unassigned">${label}</span>`}
 function operatorClass(name=''){const n=name.toLowerCase();if(n.includes('michele'))return 'op-michele';if(n.includes('ivan'))return 'op-ivan';if(n.includes('piero'))return 'op-piero';return 'op-altro'}
+function operatorColor(name=''){const c=operatorClass(name);return ({'op-michele':'#5a9bd5','op-ivan':'#69b578','op-piero':'#e19a4b','op-altro':'#9aa7a8'})[c]}
+function leaveCellBackground(names=[]){const unique=[...new Set(names)].slice(0,3);if(!unique.length)return '';if(unique.length===1)return operatorColor(unique[0]);if(unique.length===2)return `linear-gradient(90deg,${operatorColor(unique[0])} 0 50%,${operatorColor(unique[1])} 50% 100%)`;return `linear-gradient(90deg,${operatorColor(unique[0])} 0 33.333%,${operatorColor(unique[1])} 33.333% 66.666%,${operatorColor(unique[2])} 66.666% 100%)`}
 function operatorNameHtml(name){return name?`<span class="operator-name ${operatorClass(name)}"><i></i>${name}</span>`:'<span class="unassigned">Da assegnare</span>'}
 function optionList(items,selected='',placeholder='Nessuno'){return `<option value="">${placeholder}</option>`+items.map(x=>`<option ${x===selected?'selected':''}>${x}</option>`).join('')}
 function renderAll(){renderDashboard();renderUpcoming();renderTurns();renderLeaves();renderLeaveVisuals();renderPeople();renderAudit();renderCalendar();fillSelects()}
@@ -285,13 +287,42 @@ function renderLeaveVisuals(){
      const cls=[info.conflicts.length?'conflict':'',count>=3?'many':count===2?'two':count===1?'one':'',turn?'has-saturday':'',turn&&count?'mixed':''].filter(Boolean).join(' ');
      const details={date:`${day} ${monthName} 2026`,absent:absentNames,conflict:info.conflicts.length>0,operator:turn?.operator||'',gipPenale:turn?.gipPenale||'',gipCivile:turn?.gipCivile||''};
      const dots=[...new Set(absentNames)].map(name=>`<i class="operator-dot ${operatorClass(name)}"></i>`).join('');
-     cells+=`<span class="annual-day ${cls}" data-details="${encodeURIComponent(JSON.stringify(details))}" tabindex="0" aria-label="Dettagli ${day} ${monthName}"><b>${day}</b>${turn?'<u class="annual-saturday-flag"></u>':''}${dots?`<em class="annual-operator-dots">${dots}</em>`:''}${count?`<small>${count}</small>`:''}</span>`;
+     const cellBackground=leaveCellBackground(absentNames);
+     cells+=`<span class="annual-day ${cls}${count?' has-operator-color':''}" data-iso="${iso}" data-details="${encodeURIComponent(JSON.stringify(details))}" style="${cellBackground?`background:${cellBackground}`:''}" tabindex="0" aria-label="Dettagli ${day} ${monthName}"><b>${day}</b>${turn?'<u class="annual-saturday-flag"></u>':''}${dots?`<em class="annual-operator-dots">${dots}</em>`:''}${count?`<small>${count}</small>`:''}</span>`;
    }
    return `<article class="annual-month"><h4>${monthName}</h4><div class="annual-month-grid">${cells}</div></article>`;
  }).join('');
  setupAnnualDayTooltips();
 }
 
+let selectedCalendarDate='';
+function openDayAction(iso){
+ selectedCalendarDate=iso;
+ const d=new Date(iso+'T12:00:00');
+ const isSaturday=d.getDay()===6;
+ const turn=state.turns.find(t=>t.date===iso);
+ const absent=state.leaves.filter(l=>l.status!=='Rifiutata'&&between(iso,l.start,l.end));
+ $('#dayActionTitle').textContent=fmtDate(iso,{weekday:'long',day:'numeric',month:'long',year:'numeric'});
+ const ferie=absent.length?absent.map(x=>x.operator).join(', '):'nessuna ferie inserita';
+ const turno=turn?`turno: ${turn.operator||'da assegnare'}`:'nessun turno inserito';
+ $('#dayActionSummary').textContent=`Ferie: ${ferie}${isSaturday?' · '+turno:''}`;
+ const turnBtn=$('#dayManageTurnBtn');
+ turnBtn.hidden=!isSaturday;
+ turnBtn.textContent=turn?'Modifica turno del sabato':'Inserisci turno del sabato';
+ $('#dayActionDialog').showModal();
+}
+function openLeaveForSelectedDay(){
+ $('#dayActionDialog').close();
+ openLeave();
+ $('#leaveStart').value=selectedCalendarDate;
+ $('#leaveEnd').value=selectedCalendarDate;
+ if(currentUser?.name&&state.operators.includes(currentUser.name))$('#leaveOperator').value=currentUser.name;
+}
+function openTurnForSelectedDay(){
+ const existing=state.turns.find(t=>t.date===selectedCalendarDate);
+ $('#dayActionDialog').close();
+ if(existing)openTurn(existing.id);else{openTurn();$('#turnDate').value=selectedCalendarDate}
+}
 function renderPeople(){renderPeopleList('#operatorsList',state.operators,'operator');renderPeopleList('#criminalList',state.gipPenale,'gipPenale');renderPeopleList('#civilList',state.gipCivile,'gipCivile')}
 function renderPeopleList(sel,items,type){$(sel).innerHTML=items.map((x,i)=>`<div class="person-row"><span>${x}</span><button class="icon-btn delete-person" data-type="${type}" data-index="${i}">×</button></div>`).join('')}
 function timelineHtml(items){return items.map(a=>`<div class="timeline-item"><strong>${a.action}</strong><small>${a.user} · ${new Intl.DateTimeFormat('it-IT',{dateStyle:'short',timeStyle:'short'}).format(new Date(a.when))}</small></div>`).join('')||'<p class="muted">Nessuna modifica registrata.</p>'}
@@ -314,7 +345,7 @@ function setupAnnualDayTooltips(){
    el.addEventListener('mouseleave',hide);
    el.addEventListener('focus',e=>show(el,e));
    el.addEventListener('blur',hide);
-   el.addEventListener('click',e=>{e.preventDefault();show(el,e)});
+   el.addEventListener('click',e=>{e.preventDefault();hide();openDayAction(el.dataset.iso)});
  });
 }
 function positionCalendarTooltip(e,el,tooltip){
@@ -534,6 +565,9 @@ $('#copyLeaveRequestBtn')?.addEventListener('click',copyLeaveRequest);
 $('#openLeaveEmailBtn')?.addEventListener('click',openLeaveRequestEmail);
 $$('.close-leave-request').forEach(b=>b.addEventListener('click',()=>$('#leaveRequestDialog').close()));
 
+$('#dayAddLeaveBtn')?.addEventListener('click',openLeaveForSelectedDay);
+$('#dayManageTurnBtn')?.addEventListener('click',openTurnForSelectedDay);
+$$('.close-day-action').forEach(b=>b.addEventListener('click',()=>$('#dayActionDialog').close()));
 $('#upcomingCount').addEventListener('change',renderUpcoming);
 document.addEventListener('click',e=>{const b=e.target.closest('.goto-upcoming');if(!b)return;$$('.nav-item').forEach(x=>x.classList.toggle('active',x.dataset.view==='upcoming'));$$('.view').forEach(x=>x.classList.remove('active-view'));$('#upcoming').classList.add('active-view');$('#pageTitle').textContent='Prossimi sabati';});document.addEventListener('click',e=>{const b=e.target.closest('.goto-leave');if(!b)return;$$('.nav-item').forEach(x=>x.classList.toggle('active',x.dataset.view==='leave'));$$('.view').forEach(x=>x.classList.remove('active-view'));$('#leave').classList.add('active-view');$('#pageTitle').textContent='Ferie';});
 $('#prevMonth').onclick=()=>{calendarMonth=(calendarMonth+11)%12;renderCalendar()};$('#nextMonth').onclick=()=>{calendarMonth=(calendarMonth+1)%12;renderCalendar()};$('#monthSelect').onchange=e=>{calendarMonth=+e.target.value;renderCalendar()};

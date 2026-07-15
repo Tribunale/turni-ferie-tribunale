@@ -27,7 +27,7 @@
         <button class="btn primary" type="submit">Accedi</button>
       </form>
       <p id="loginStatus" class="login-status" aria-live="polite"></p>
-      <button id="forgotPasswordBtn" class="text-button" type="button">Password dimenticata?</button><p class="app-version">Versione 4.3</p>
+      <button id="forgotPasswordBtn" class="text-button" type="button">Password dimenticata?</button><p class="app-version">Versione 4.4</p>
     </div>
   </section>
 
@@ -239,6 +239,19 @@
       <label>Note<textarea id="leaveNotes" rows="3"></textarea></label>
       <div class="modal-actions"><button class="btn ghost" value="cancel">Annulla</button><button class="btn primary" value="default">Salva ferie</button></div>
     </form>
+  </dialog>
+
+
+  <dialog id="dayActionDialog">
+    <div class="modal-form day-action-modal">
+      <div class="modal-head"><div><p class="eyebrow">GESTIONE GIORNO</p><h3 id="dayActionTitle">Gestisci giornata</h3></div><button class="icon-btn close-day-action" type="button" aria-label="Chiudi">×</button></div>
+      <p id="dayActionSummary" class="day-action-summary"></p>
+      <div class="day-action-buttons">
+        <button id="dayAddLeaveBtn" class="btn primary" type="button">Inserisci ferie</button>
+        <button id="dayManageTurnBtn" class="btn secondary" type="button">Inserisci turno del sabato</button>
+      </div>
+      <div class="modal-actions"><button class="btn ghost close-day-action" type="button">Chiudi</button></div>
+    </div>
   </dialog>
 
   <dialog id="personDialog"><form id="personForm" class="modal-form"><div class="modal-head"><h3 id="personDialogTitle">Aggiungi nominativo</h3><button class="icon-btn close-person" type="button" aria-label="Chiudi">×</button></div><input id="personType" type="hidden"/><label>Nome e cognome<input id="personName" type="text" autocomplete="off" required/></label><p id="personHelp" class="muted person-help"></p><div class="modal-actions"><button class="btn ghost close-person" type="button">Annulla</button><button class="btn primary" type="submit">Aggiungi</button></div></form></dialog>

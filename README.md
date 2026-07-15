@@ -25,3 +25,5 @@ Commit consigliato: `Versione 4 definitiva verificata`
 - Destinatario memorizzato solo nel browser.
 
 - Versione 4.3: aggiunti istogramma giornaliero ferie con giorni sotto il reticolo e calendario ferie/sabati più integrato.
+
+- Versione 4.4: colori operatori più distinti; caselle ferie colorate per operatore e divise in più colori; clic sul giorno per inserire ferie o gestire il turno del sabato.
