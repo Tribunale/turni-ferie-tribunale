@@ -27,7 +27,7 @@
         <button class="btn primary" type="submit">Accedi</button>
       </form>
       <p id="loginStatus" class="login-status" aria-live="polite"></p>
-      <button id="forgotPasswordBtn" class="text-button" type="button">Password dimenticata?</button><p class="app-version">Versione 4.4</p>
+      <button id="forgotPasswordBtn" class="text-button" type="button">Password dimenticata?</button><p class="app-version">Versione 4.5</p>
     </div>
   </section>
 
@@ -246,10 +246,18 @@
     <div class="modal-form day-action-modal">
       <div class="modal-head"><div><p class="eyebrow">GESTIONE GIORNO</p><h3 id="dayActionTitle">Gestisci giornata</h3></div><button class="icon-btn close-day-action" type="button" aria-label="Chiudi">×</button></div>
       <p id="dayActionSummary" class="day-action-summary"></p>
-      <div class="day-action-buttons">
-        <button id="dayAddLeaveBtn" class="btn primary" type="button">Inserisci ferie</button>
-        <button id="dayManageTurnBtn" class="btn secondary" type="button">Inserisci turno del sabato</button>
-      </div>
+      <section class="day-action-section">
+        <div class="day-action-section-head"><strong>Ferie</strong><button id="dayAddLeaveBtn" class="btn primary small" type="button">Aggiungi ferie</button></div>
+        <div id="dayLeaveActions" class="day-existing-list"></div>
+      </section>
+      <section id="dayTurnSection" class="day-action-section">
+        <div class="day-action-section-head"><strong>Turno del sabato</strong></div>
+        <div id="dayTurnDetails" class="day-turn-details"></div>
+        <div class="day-action-buttons">
+          <button id="dayManageTurnBtn" class="btn secondary" type="button">Inserisci turno del sabato</button>
+          <button id="dayDeleteTurnBtn" class="btn danger" type="button" hidden>Elimina turno del sabato</button>
+        </div>
+      </section>
       <div class="modal-actions"><button class="btn ghost close-day-action" type="button">Chiudi</button></div>
     </div>
   </dialog>
