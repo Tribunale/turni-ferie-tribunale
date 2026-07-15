@@ -5,8 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <meta name="theme-color" content="#315f63" />
   <title>Turni & Ferie</title>
-  <link rel="manifest" href="manifest.webmanifest" />
-  <link rel="stylesheet" href="styles.css?v=3.0.0" />
+    <link rel="stylesheet" href="styles.css?v=3.2.0" />
 </head>
 <body>
   <div id="toast" class="toast" aria-live="polite"></div>
@@ -28,6 +27,7 @@
         <button class="btn primary" type="submit">Accedi</button>
       </form>
       <p id="loginStatus" class="login-status" aria-live="polite"></p>
+      <button id="forgotPasswordBtn" class="text-button" type="button">Password dimenticata?</button>
     </div>
   </section>
 
@@ -45,6 +45,7 @@
         <button class="nav-item" data-view="leave">Ferie</button>
         <button class="nav-item" data-view="people">Operatori e GIP</button>
         <button class="nav-item" data-view="audit">Registro modifiche</button>
+        <button id="accountNavBtn" class="nav-item account-nav" data-action="profile" type="button">Profilo e password</button>
       </nav>
       <div class="sidebar-footer">
         <span id="currentUserLabel"></span>
@@ -251,24 +252,26 @@
       <label>Email di accesso
         <input id="profileEmail" type="email" autocomplete="email" required />
       </label>
+      <div class="account-security-head"><strong>Sicurezza account</strong><small>Cambia la password di accesso</small></div>
       <div class="profile-password-grid">
         <label>Nuova password
-          <input id="profilePassword" type="password" autocomplete="new-password" minlength="6" placeholder="Lascia vuoto per non cambiarla" />
+          <input id="profilePassword" type="password" autocomplete="new-password" minlength="8" placeholder="Almeno 8 caratteri" />
         </label>
         <label>Conferma password
-          <input id="profilePasswordConfirm" type="password" autocomplete="new-password" minlength="6" placeholder="Ripeti la nuova password" />
+          <input id="profilePasswordConfirm" type="password" autocomplete="new-password" minlength="8" placeholder="Ripeti la nuova password" />
         </label>
       </div>
-      <p class="muted profile-help">Nome, email e password vengono aggiornati nell’account Supabase. Dopo il cambio password verrai disconnesso e dovrai rientrare con la nuova password.</p>
+      <button id="changePasswordBtn" type="button" class="btn secondary full-width">Cambia password</button>
+      <p class="muted profile-help">Dopo il cambio password verrai disconnesso automaticamente e dovrai rientrare con la nuova password.</p>
       <p id="profileStatus" class="form-status" role="status" aria-live="polite"></p>
       <div class="modal-actions">
         <button type="button" class="btn ghost close-profile">Annulla</button>
-        <button id="profileSaveBtn" type="submit" class="btn primary">Salva profilo</button>
+        <button id="profileSaveBtn" type="submit" class="btn primary">Salva nome ed email</button>
       </div>
     </form>
   </dialog>
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.49.8/dist/umd/supabase.min.js" crossorigin="anonymous"></script>
-  <script src="app.js?v=3.0.0"></script>
+  <script src="app.js?v=3.2.0"></script>
 </body>
 </html>

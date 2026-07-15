@@ -1,5 +1,5 @@
 'use strict';
-const APP_VERSION='3.1.0';
+const APP_VERSION='3.2.0';
 const STORAGE_KEY='turni-ferie-2026-v2';
 const SUPABASE_URL='https://ztamohdnmpivcojxyvcv.supabase.co';
 const SUPABASE_PUBLISHABLE_KEY='sb_publishable_4YeUzoSUbtWq57ylQPBIqw_mvCcJsHd';
@@ -309,8 +309,44 @@ $('#profileForm').addEventListener('submit',async e=>{
     if(!password){saveBtn.disabled=false;setTimeout(()=>saveBtn.textContent='Salva profilo',1500)}
   }
 });
+$('#changePasswordBtn').addEventListener('click',async()=>{
+  if(!currentUser)return;
+  const password=$('#profilePassword').value;
+  const confirmPassword=$('#profilePasswordConfirm').value;
+  const status=$('#profileStatus');
+  const btn=$('#changePasswordBtn');
+  const setStatus=(message,type='')=>{status.textContent=message;status.className=`form-status ${type}`.trim()};
+  if(!password)return setStatus('Inserisci la nuova password.','error');
+  if(password.length<8)return setStatus('La nuova password deve avere almeno 8 caratteri.','error');
+  if(password!==confirmPassword)return setStatus('Le due password non coincidono.','error');
+  btn.disabled=true;btn.textContent='Aggiornamento password…';
+  setStatus('Modifica della password in corso…');
+  try{
+    const {error}=await supabaseClient.auth.updateUser({password});
+    if(error)throw error;
+    $('#profilePassword').value='';
+    $('#profilePasswordConfirm').value='';
+    setStatus('Password modificata correttamente. Ora verrai disconnesso.','success');
+    btn.textContent='Password aggiornata';
+    setTimeout(async()=>{await supabaseClient.auth.signOut();window.location.replace(window.location.origin)},1800);
+  }catch(err){
+    console.error('Password update error',err);
+    setStatus(`Cambio password non riuscito: ${err?.message||'errore sconosciuto'}`,'error');
+    btn.disabled=false;btn.textContent='Cambia password';
+  }
+});
+
+$('#forgotPasswordBtn').addEventListener('click',async()=>{
+  const email=$('#loginEmail').value.trim().toLowerCase();
+  const status=$('#loginStatus');
+  if(!email){status.textContent='Inserisci prima la tua email.';status.className='login-status error';return}
+  const {error}=await supabaseClient.auth.resetPasswordForEmail(email,{redirectTo:window.location.origin});
+  if(error){status.textContent=`Invio non riuscito: ${error.message}`;status.className='login-status error';return}
+  status.textContent='Ti abbiamo inviato un messaggio per reimpostare la password.';status.className='login-status success';
+});
+
 $('#logoutBtn').onclick=async()=>{await supabaseClient.auth.signOut();location.reload()};
-$('#mainNav').onclick=e=>{const b=e.target.closest('.nav-item');if(!b)return;$$('.nav-item').forEach(x=>x.classList.remove('active'));b.classList.add('active');$$('.view').forEach(x=>x.classList.remove('active-view'));$('#'+b.dataset.view).classList.add('active-view');$('#pageTitle').textContent=b.textContent};
+$('#mainNav').onclick=e=>{const b=e.target.closest('.nav-item');if(!b)return;if(b.dataset.action==='profile'){openProfile();return}$$('.nav-item').forEach(x=>x.classList.remove('active'));b.classList.add('active');$$('.view').forEach(x=>x.classList.remove('active-view'));const view=$('#'+b.dataset.view);if(view)view.classList.add('active-view');$('#pageTitle').textContent=b.textContent};
 $('#addTurnBtn').onclick=()=>openTurn();$('#addLeaveBtn').onclick=()=>openLeave();
 $('#turnForm').addEventListener('submit',async e=>{e.preventDefault();const date=$('#turnDate').value;if(new Date(date+'T12:00:00').getDay()!==6)return toast('La data deve essere un sabato');const id=$('#turnId').value;const operator=$('#turnOperator').value,gp=$('#turnCriminal').value,gc=$('#turnCivil').value;if(!gp&&!gc)return toast('Assegna almeno un GIP Penale o Civile');const payload={data_turno:date,operatore_id:await getId(operatorIds,operator),gip_penale_id:await getId(gipPenaleIds,gp),gip_civile_id:await getId(gipCivileIds,gc),note:$('#turnNotes').value.trim()||null,updated_by:currentUser.id};let res=id?await supabaseClient.from('turni_sabato').update(payload).eq('id',id):await supabaseClient.from('turni_sabato').insert({...payload,created_by:currentUser.id});if(res.error)return toast(`Errore: ${res.error.message}`);await loadRemoteState();$('#turnDialog').close();renderAll();toast('Turno salvato')});
 $('#leaveForm').addEventListener('submit',async e=>{e.preventDefault();if($('#leaveEnd').value<$('#leaveStart').value)return toast('La data finale non può precedere quella iniziale');const id=$('#leaveId').value;const stato=({Richiesta:'richiesta',Approvata:'approvata',Rifiutata:'rifiutata'})[$('#leaveStatus').value];const payload={operatore_id:await getId(operatorIds,$('#leaveOperator').value),data_inizio:$('#leaveStart').value,data_fine:$('#leaveEnd').value,stato,tipologia:'Ferie',note:$('#leaveNotes').value.trim()||null,updated_by:currentUser.id};let res=id?await supabaseClient.from('ferie').update(payload).eq('id',id):await supabaseClient.from('ferie').insert({...payload,created_by:currentUser.id});if(res.error)return toast(`Errore: ${res.error.message}`);await loadRemoteState();$('#leaveDialog').close();renderAll();toast('Ferie salvate')});
@@ -340,6 +376,6 @@ const months=['Gennaio','Febbraio','Marzo','Aprile','Maggio','Giugno','Luglio','
   }
 })();
 
-if('serviceWorker' in navigator){
-  window.addEventListener('load',()=>navigator.serviceWorker.register('sw.js?v=2.0.0').catch(console.warn));
-}
+// Nessun service worker: evita che vecchie versioni blocchino login e aggiornamenti.
+if('serviceWorker' in navigator){navigator.serviceWorker.getRegistrations().then(items=>items.forEach(item=>item.unregister())).catch(()=>{})}
+if('caches' in window){caches.keys().then(keys=>keys.forEach(key=>caches.delete(key))).catch(()=>{})}
