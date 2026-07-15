@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <meta name="theme-color" content="#315f63" />
   <title>Turni & Ferie</title>
-    <link rel="stylesheet" href="styles.css?v=4.0.0" />
+    <link rel="stylesheet" href="styles.css?v=4.1.0" />
 </head>
 <body>
   <div id="toast" class="toast" aria-live="polite"></div>
@@ -27,7 +27,7 @@
         <button class="btn primary" type="submit">Accedi</button>
       </form>
       <p id="loginStatus" class="login-status" aria-live="polite"></p>
-      <button id="forgotPasswordBtn" class="text-button" type="button">Password dimenticata?</button><p class="app-version">Versione 4.0</p>
+      <button id="forgotPasswordBtn" class="text-button" type="button">Password dimenticata?</button><p class="app-version">Versione 4.1</p>
     </div>
   </section>
 
@@ -176,6 +176,10 @@
             <div><p class="eyebrow">QUADRO GENERALE</p><h3>Ferie programmate</h3></div>
             <button id="addLeaveBtn" class="btn primary">Inserisci ferie</button>
           </div>
+          <div class="leave-request-toolbar">
+            <div><strong>Richiesta al dirigente</strong><span id="selectedLeavesCount">0 periodi selezionati</span></div>
+            <div class="row-actions"><button id="clearLeaveSelectionBtn" class="btn ghost" type="button" hidden>Deseleziona</button><button id="generateLeaveRequestBtn" class="btn secondary" type="button" disabled>Genera richiesta ferie</button></div>
+          </div>
           <div class="filters leave-filters">
             <input id="leaveSearch" placeholder="Cerca operatore o nota" />
             <select id="leaveOperatorFilter"><option value="">Tutti gli operatori</option></select>
@@ -183,7 +187,7 @@
             <select id="leaveTimeFilter"><option value="all">Tutti i periodi</option><option value="current">In corso</option><option value="future" selected>Future</option><option value="past">Concluse</option></select>
           </div>
           <div id="leaveOverview" class="leave-wide-list"></div>
-          <details class="leave-table-details"><summary>Apri tabella completa</summary><div class="table-wrap"><table><thead><tr><th>Operatore</th><th>Dal</th><th>Al</th><th>Giorni</th><th>Stato</th><th>Note</th><th></th></tr></thead><tbody id="leaveBody"></tbody></table></div></details>
+          <details class="leave-table-details"><summary>Apri tabella completa</summary><div class="table-wrap"><table><thead><tr><th></th><th>Operatore</th><th>Dal</th><th>Al</th><th>Giorni</th><th>Stato</th><th>Note</th><th></th></tr></thead><tbody id="leaveBody"></tbody></table></div></details>
         </article>
       </section>
 
@@ -271,6 +275,18 @@
     </form>
   </dialog>
 
+  <dialog id="leaveRequestDialog">
+    <form class="modal-form" method="dialog">
+      <div class="modal-head"><div><p class="eyebrow">RICHIESTA FERIE</p><h3>Testo pronto per il dirigente</h3></div><button class="icon-btn close-leave-request" type="button">×</button></div>
+      <p class="muted">Controlla il testo. Puoi modificarlo prima di copiarlo o aprire il programma di posta.</p>
+      <label>Email del dirigente <input id="leaveRequestRecipient" type="email" autocomplete="email" placeholder="facoltativa: dirigente@..." /></label>
+      <label>Oggetto <input id="leaveRequestSubject" type="text" /></label>
+      <label>Testo <textarea id="leaveRequestText" rows="13"></textarea></label>
+      <p id="leaveRequestStatus" class="form-status"></p>
+      <div class="modal-actions request-actions"><button class="btn ghost close-leave-request" type="button">Chiudi</button><button id="copyLeaveRequestBtn" class="btn secondary" type="button">Copia testo</button><button id="openLeaveEmailBtn" class="btn primary" type="button">Apri email</button></div>
+    </form>
+  </dialog>
+
   <dialog id="forgotPasswordDialog">
     <form id="forgotPasswordForm" class="modal-form">
       <div class="modal-head">
@@ -309,6 +325,6 @@
   </dialog>
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.49.8/dist/umd/supabase.min.js" crossorigin="anonymous"></script>
-  <script src="app.js?v=4.0.0"></script>
+  <script src="app.js?v=4.1.0"></script>
 </body>
 </html>
