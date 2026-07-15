@@ -1,5 +1,5 @@
 'use strict';
-const APP_VERSION='3.2.0';
+const APP_VERSION='3.3.0';
 const STORAGE_KEY='turni-ferie-2026-v2';
 const SUPABASE_URL='https://ztamohdnmpivcojxyvcv.supabase.co';
 const SUPABASE_PUBLISHABLE_KEY='sb_publishable_4YeUzoSUbtWq57ylQPBIqw_mvCcJsHd';
@@ -336,13 +336,74 @@ $('#changePasswordBtn').addEventListener('click',async()=>{
   }
 });
 
-$('#forgotPasswordBtn').addEventListener('click',async()=>{
+$('#forgotPasswordBtn').addEventListener('click',()=>{
+  const dialog=$('#forgotPasswordDialog');
   const email=$('#loginEmail').value.trim().toLowerCase();
-  const status=$('#loginStatus');
-  if(!email){status.textContent='Inserisci prima la tua email.';status.className='login-status error';return}
-  const {error}=await supabaseClient.auth.resetPasswordForEmail(email,{redirectTo:window.location.origin});
-  if(error){status.textContent=`Invio non riuscito: ${error.message}`;status.className='login-status error';return}
-  status.textContent='Ti abbiamo inviato un messaggio per reimpostare la password.';status.className='login-status success';
+  $('#forgotPasswordEmail').value=email;
+  const status=$('#forgotPasswordStatus');
+  status.textContent='';status.className='form-status';
+  dialog.showModal();
+  setTimeout(()=>$('#forgotPasswordEmail').focus(),50);
+});
+$$('.close-forgot-password').forEach(button=>button.addEventListener('click',()=>$('#forgotPasswordDialog').close()));
+$('#forgotPasswordForm').addEventListener('submit',async event=>{
+  event.preventDefault();
+  const email=$('#forgotPasswordEmail').value.trim().toLowerCase();
+  const status=$('#forgotPasswordStatus');
+  const button=$('#sendResetLinkBtn');
+  const setStatus=(message,type='')=>{status.textContent=message;status.className=`form-status ${type}`.trim()};
+  if(!email)return setStatus('Inserisci l’indirizzo email associato al tuo account.','error');
+  button.disabled=true;button.textContent='Invio in corso…';
+  setStatus('Preparazione del messaggio di ripristino…');
+  try{
+    const redirectTo=`${window.location.origin}${window.location.pathname}`;
+    const {error}=await supabaseClient.auth.resetPasswordForEmail(email,{redirectTo});
+    if(error)throw error;
+    setStatus(`Email inviata a ${email}. Controlla anche la cartella Spam.`, 'success');
+    $('#loginEmail').value=email;
+    button.textContent='Email inviata';
+  }catch(error){
+    setStatus(`Invio non riuscito: ${error?.message||'errore sconosciuto'}`,'error');
+    button.disabled=false;button.textContent='Invia link di ripristino';
+  }
+});
+
+let recoveryMode=false;
+supabaseClient.auth.onAuthStateChange(async(event)=>{
+  if(event==='PASSWORD_RECOVERY'){
+    recoveryMode=true;
+    $('#loginView').classList.remove('hidden');
+    $('#appView').classList.add('hidden');
+    const status=$('#recoveryPasswordStatus');
+    status.textContent='';status.className='form-status';
+    if(!$('#recoveryPasswordDialog').open)$('#recoveryPasswordDialog').showModal();
+    setTimeout(()=>$('#recoveryPassword').focus(),50);
+  }
+});
+$('#recoveryPasswordForm').addEventListener('submit',async event=>{
+  event.preventDefault();
+  const password=$('#recoveryPassword').value;
+  const confirmPassword=$('#recoveryPasswordConfirm').value;
+  const status=$('#recoveryPasswordStatus');
+  const button=$('#saveRecoveryPasswordBtn');
+  const setStatus=(message,type='')=>{status.textContent=message;status.className=`form-status ${type}`.trim()};
+  if(password.length<8)return setStatus('La password deve contenere almeno 8 caratteri.','error');
+  if(password!==confirmPassword)return setStatus('Le due password non coincidono.','error');
+  button.disabled=true;button.textContent='Salvataggio…';
+  try{
+    const {error}=await supabaseClient.auth.updateUser({password});
+    if(error)throw error;
+    setStatus('Password aggiornata. Ora puoi accedere con la nuova password.','success');
+    button.textContent='Password aggiornata';
+    await new Promise(resolve=>setTimeout(resolve,1400));
+    await supabaseClient.auth.signOut();
+    recoveryMode=false;
+    window.history.replaceState({},document.title,window.location.pathname);
+    window.location.replace(window.location.origin+window.location.pathname);
+  }catch(error){
+    setStatus(`Aggiornamento non riuscito: ${error?.message||'errore sconosciuto'}`,'error');
+    button.disabled=false;button.textContent='Salva nuova password';
+  }
 });
 
 $('#logoutBtn').onclick=async()=>{await supabaseClient.auth.signOut();location.reload()};
@@ -363,7 +424,7 @@ const months=['Gennaio','Febbraio','Marzo','Aprile','Maggio','Giugno','Luglio','
   try{
     const {data:{session},error}=await supabaseClient.auth.getSession();
     if(error) throw error;
-    if(session){
+    if(session&&!recoveryMode){
       await loadRemoteState();
       if(currentUser?.attivo===false){await supabaseClient.auth.signOut();throw new Error('Account disattivato')}
       $('#loginView').classList.add('hidden'); $('#appView').classList.remove('hidden');

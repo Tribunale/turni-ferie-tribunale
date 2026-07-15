@@ -158,3 +158,6 @@ dialog{border:1px solid var(--line);border-radius:12px;padding:0;box-shadow:0 25
 
 /* Account v3.2 */
 .account-nav{margin-top:8px;border-top:1px solid var(--border);padding-top:14px}.account-security-head{display:grid;gap:2px;padding-top:6px;border-top:1px solid var(--border)}.account-security-head small{color:var(--muted);font-size:12px}.full-width{width:100%}.text-button{border:0;background:transparent;color:var(--accent);font:inherit;font-size:13px;cursor:pointer;padding:8px 0}.text-button:hover{text-decoration:underline}
+
+#forgotPasswordDialog,#recoveryPasswordDialog{max-width:480px;width:min(92vw,480px)}
+#forgotPasswordDialog .muted,#recoveryPasswordDialog .muted{line-height:1.55;margin:0}
