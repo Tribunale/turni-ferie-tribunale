@@ -27,7 +27,7 @@
         <button class="btn primary" type="submit">Accedi</button>
       </form>
       <p id="loginStatus" class="login-status" aria-live="polite"></p>
-      <button id="forgotPasswordBtn" class="text-button" type="button">Password dimenticata?</button><p class="app-version">Versione 4.1</p>
+      <button id="forgotPasswordBtn" class="text-button" type="button">Password dimenticata?</button><p class="app-version">Versione 4.3</p>
     </div>
   </section>
 
@@ -164,10 +164,16 @@
             <span><i class="visual-dot one"></i> 1 persona assente</span>
             <span><i class="visual-dot two"></i> 2 persone assenti</span>
             <span><i class="visual-dot many"></i> 3 o più persone assenti</span>
-            <span><i class="visual-dot conflict"></i> Conflitto con turno</span>
+            <span><i class="visual-dot sabato"></i> Sabato con turno</span>
+            <span><i class="visual-dot conflict"></i> Conflitto ferie/turno</span>
           </div>
           <div id="leaveHistogram" class="leave-histogram"></div>
-          <div class="annual-calendar-head"><strong>Calendario annuale 2026</strong><small>Tocca o passa sopra un giorno per vedere chi è assente</small></div>
+          <div class="daily-histogram-head">
+            <div><strong>Dettaglio giornaliero</strong><small>Giorni del mese sotto il reticolo, con evidenza dei sabati</small></div>
+            <select id="leaveDetailMonth"><option value="6">Luglio 2026</option></select>
+          </div>
+          <div id="leaveDailyHistogram" class="leave-daily-histogram"></div>
+          <div class="annual-calendar-head"><strong>Calendario annuale 2026</strong><small>Tocca o passa sopra un giorno per vedere ferie e turno del sabato</small></div>
           <div id="leaveAnnualCalendar" class="leave-annual-calendar"></div>
         </article>
 

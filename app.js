@@ -1,5 +1,5 @@
 'use strict';
-const APP_VERSION='4.1.0';
+const APP_VERSION='4.3.0';
 const STORAGE_KEY='turni-ferie-2026-v2';
 const SUPABASE_URL='https://ztamohdnmpivcojxyvcv.supabase.co';
 const SUPABASE_PUBLISHABLE_KEY='sb_publishable_4YeUzoSUbtWq57ylQPBIqw_mvCcJsHd';
@@ -79,13 +79,15 @@ function getConflict(turn){return state.leaves.some(l=>l.status==='Approvata'&&l
 function turnStatus(t){if(getConflict(t))return 'Conflitto';if(!t.operator||(!t.gipPenale&&!t.gipCivile))return 'Da completare';return 'Assegnato'}
 function badge(status){const c=status==='Assegnato'||status==='Approvata'?'green':status==='Conflitto'||status==='Rifiutata'?'red':'yellow';return `<span class="badge ${c}">${status}</span>`}
 function assignmentValue(value,label='Da assegnare'){return value||`<span class="unassigned">${label}</span>`}
+function operatorClass(name=''){const n=name.toLowerCase();if(n.includes('michele'))return 'op-michele';if(n.includes('ivan'))return 'op-ivan';if(n.includes('piero'))return 'op-piero';return 'op-altro'}
+function operatorNameHtml(name){return name?`<span class="operator-name ${operatorClass(name)}"><i></i>${name}</span>`:'<span class="unassigned">Da assegnare</span>'}
 function optionList(items,selected='',placeholder='Nessuno'){return `<option value="">${placeholder}</option>`+items.map(x=>`<option ${x===selected?'selected':''}>${x}</option>`).join('')}
 function renderAll(){renderDashboard();renderUpcoming();renderTurns();renderLeaves();renderLeaveVisuals();renderPeople();renderAudit();renderCalendar();fillSelects()}
 function renderDashboard(){
  const conflicts=state.turns.filter(getConflict).length;$('#kpiTurns').textContent=state.turns.length;$('#kpiCriminal').textContent=state.turns.filter(t=>t.gipPenale).length;$('#kpiCivil').textContent=state.turns.filter(t=>t.gipCivile).length;$('#kpiConflicts').textContent=conflicts;
  $('#alerts').innerHTML=conflicts?`<div class="alert red">Attenzione: sono presenti ${conflicts} conflitti tra turni e ferie approvate.</div>`:`<div class="alert green">Nessun conflitto rilevato tra turni e ferie approvate.</div>`;
  const today=new Date().toISOString().slice(0,10); const next=state.turns.filter(t=>t.date>=today).sort((a,b)=>a.date.localeCompare(b.date))[0];
- $('#nextSaturdayCard').innerHTML=next?`<div class="next-date">${fmtDate(next.date,{weekday:'long',day:'2-digit',month:'long'})}</div><div class="assignment-grid"><div class="assignment"><span>Operatore</span><strong>${assignmentValue(next.operator)}</strong></div><div class="assignment"><span>GIP Penale</span><strong>${assignmentValue(next.gipPenale)}</strong></div><div class="assignment"><span>GIP Civile</span><strong>${assignmentValue(next.gipCivile)}</strong></div></div>${next.notes?`<p class="muted">${next.notes}</p>`:''}`:'<p>Nessun turno futuro inserito.</p>';
+ $('#nextSaturdayCard').innerHTML=next?`<div class="next-date">${fmtDate(next.date,{weekday:'long',day:'2-digit',month:'long'})}</div><div class="assignment-grid"><div class="assignment"><span>Operatore</span><strong>${operatorNameHtml(next.operator)}</strong></div><div class="assignment"><span>GIP Penale</span><strong>${assignmentValue(next.gipPenale)}</strong></div><div class="assignment"><span>GIP Civile</span><strong>${assignmentValue(next.gipCivile)}</strong></div></div>${next.notes?`<p class="muted">${next.notes}</p>`:''}`:'<p>Nessun turno futuro inserito.</p>';
  const counts=state.operators.map(o=>({name:o,value:state.turns.filter(t=>t.operator===o).length})); renderBars('#operatorBars',counts);
  const leaveCounts=state.operators.map(o=>({name:o,value:state.leaves.filter(l=>l.operator===o&&l.status!=='Rifiutata').reduce((s,l)=>s+daysInclusive(l.start,l.end),0)}));renderBars('#leaveBars',leaveCounts);
  $('#dashboardUpcoming').innerHTML=upcomingCardsHtml(getUpcomingTurns(4));
@@ -98,22 +100,22 @@ function getUpcomingTurns(limit=8){
  return state.turns.filter(t=>t.date>=today).sort((a,b)=>a.date.localeCompare(b.date)).slice(0,limit===99?undefined:limit);
 }
 function upcomingClass(t){return getConflict(t)?'conflict':turnStatus(t)==='Da completare'?'incomplete':''}
-function upcomingCardsHtml(items){return items.map(t=>`<article class="upcoming-card ${upcomingClass(t)}"><div class="upcoming-date">${fmtDate(t.date,{weekday:'long',day:'2-digit',month:'long'})}</div><dl><div><dt>Operatore</dt><dd>${assignmentValue(t.operator)}</dd></div><div><dt>GIP Penale</dt><dd>${assignmentValue(t.gipPenale)}</dd></div><div><dt>GIP Civile</dt><dd>${assignmentValue(t.gipCivile)}</dd></div></dl><div style="margin-top:12px">${badge(turnStatus(t))}</div></article>`).join('')||'<p class="muted">Non ci sono turni futuri inseriti.</p>'}
+function upcomingCardsHtml(items){return items.map(t=>`<article class="upcoming-card ${upcomingClass(t)}"><div class="upcoming-date">${fmtDate(t.date,{weekday:'long',day:'2-digit',month:'long'})}</div><dl><div><dt>Operatore</dt><dd>${operatorNameHtml(t.operator)}</dd></div><div><dt>GIP Penale</dt><dd>${assignmentValue(t.gipPenale)}</dd></div><div><dt>GIP Civile</dt><dd>${assignmentValue(t.gipCivile)}</dd></div></dl><div style="margin-top:12px">${badge(turnStatus(t))}</div></article>`).join('')||'<p class="muted">Non ci sono turni futuri inseriti.</p>'}
 function getUpcomingLeaves(limit=4){
  const today=new Date().toISOString().slice(0,10);
  return state.leaves.filter(l=>l.status!=='Rifiutata'&&l.end>=today).sort((a,b)=>a.start.localeCompare(b.start)).slice(0,limit);
 }
 function leaveHasConflict(l){return state.turns.some(t=>t.operator===l.operator&&between(t.date,l.start,l.end))}
 function leaveTiming(l){const today=new Date().toISOString().slice(0,10);if(between(today,l.start,l.end))return 'In corso';if(l.start>today)return 'Programmata';return 'Conclusa'}
-function leaveCardsHtml(items){return items.map(l=>`<article class="leave-card ${leaveHasConflict(l)?'has-conflict':''}"><div class="leave-card-head"><div><span class="leave-person">${l.operator}</span><strong>${fmtDate(l.start,{day:'2-digit',month:'short'})} → ${fmtDate(l.end,{day:'2-digit',month:'short',year:'numeric'})}</strong></div>${badge(l.status)}</div><div class="leave-card-meta"><span>${daysInclusive(l.start,l.end)} giorni</span><span>${leaveTiming(l)}</span>${leaveHasConflict(l)?'<span class="conflict-text">Conflitto con turno</span>':''}</div>${l.notes?`<p>${l.notes}</p>`:''}</article>`).join('')||'<p class="muted">Non ci sono ferie future inserite.</p>'}
+function leaveCardsHtml(items){return items.map(l=>`<article class="leave-card ${operatorClass(l.operator)} ${leaveHasConflict(l)?'has-conflict':''}"><div class="leave-card-head"><div><span class="leave-person operator-name ${operatorClass(l.operator)}"><i></i>${l.operator}</span><strong>${fmtDate(l.start,{day:'2-digit',month:'short'})} → ${fmtDate(l.end,{day:'2-digit',month:'short',year:'numeric'})}</strong></div>${badge(l.status)}</div><div class="leave-card-meta"><span>${daysInclusive(l.start,l.end)} giorni</span><span>${leaveTiming(l)}</span>${leaveHasConflict(l)?'<span class="conflict-text">Conflitto con turno</span>':''}</div>${l.notes?`<p>${l.notes}</p>`:''}</article>`).join('')||'<p class="muted">Non ci sono ferie future inserite.</p>'}
 function renderUpcoming(){
  const limit=Number($('#upcomingCount')?.value||8);
  const items=getUpcomingTurns(limit);
- $('#upcomingList').innerHTML=items.map(t=>`<div class="upcoming-row ${upcomingClass(t)}"><div class="upcoming-cell"><span>Sabato</span><strong>${fmtDate(t.date,{weekday:'long',day:'2-digit',month:'long',year:'numeric'})}</strong></div><div class="upcoming-cell"><span>Operatore</span><strong>${assignmentValue(t.operator)}</strong></div><div class="upcoming-cell"><span>GIP Penale</span><strong>${assignmentValue(t.gipPenale)}</strong></div><div class="upcoming-cell civil-cell"><span>GIP Civile</span><strong>${assignmentValue(t.gipCivile)}</strong></div><div class="upcoming-cell status-cell">${badge(turnStatus(t))}</div></div>`).join('')||'<p class="muted">Non ci sono turni futuri inseriti.</p>';
+ $('#upcomingList').innerHTML=items.map(t=>`<div class="upcoming-row ${upcomingClass(t)}"><div class="upcoming-cell"><span>Sabato</span><strong>${fmtDate(t.date,{weekday:'long',day:'2-digit',month:'long',year:'numeric'})}</strong></div><div class="upcoming-cell"><span>Operatore</span><strong>${operatorNameHtml(t.operator)}</strong></div><div class="upcoming-cell"><span>GIP Penale</span><strong>${assignmentValue(t.gipPenale)}</strong></div><div class="upcoming-cell civil-cell"><span>GIP Civile</span><strong>${assignmentValue(t.gipCivile)}</strong></div><div class="upcoming-cell status-cell">${badge(turnStatus(t))}</div></div>`).join('')||'<p class="muted">Non ci sono turni futuri inseriti.</p>';
 }
 
-function renderBars(sel,data){const max=Math.max(...data.map(x=>x.value),1);$(sel).innerHTML=data.map(x=>`<div class="bar-row"><span>${x.name.split(' ')[0]}</span><div class="bar-track"><div class="bar-fill" style="width:${x.value/max*100}%"></div></div><strong>${x.value}</strong></div>`).join('')}
-function renderTurns(){const q=$('#turnSearch')?.value?.toLowerCase()||'';const type=$('#turnTypeFilter')?.value||'';const status=$('#turnStatusFilter')?.value||'';const rows=state.turns.filter(t=>[t.operator,t.gipPenale,t.gipCivile].join(' ').toLowerCase().includes(q)).filter(t=>!type||(type==='Penale'?t.gipPenale:t.gipCivile)).filter(t=>!status||turnStatus(t)===status).sort((a,b)=>a.date.localeCompare(b.date));$('#turnsBody').innerHTML=rows.map(t=>`<tr><td><strong>${fmtDate(t.date)}</strong></td><td>${t.operator||'—'}</td><td>${t.gipPenale||'—'}</td><td>${t.gipCivile||'—'}</td><td>${badge(turnStatus(t))}</td><td>${t.notes||''}</td><td><div class="row-actions"><button class="btn ghost edit-turn" data-id="${t.id}">Modifica</button><button class="btn ghost delete-turn" data-id="${t.id}">Elimina</button></div></td></tr>`).join('')||'<tr><td colspan="7">Nessun turno trovato.</td></tr>'}
+function renderBars(sel,data){const max=Math.max(...data.map(x=>x.value),1);$(sel).innerHTML=data.map(x=>`<div class="bar-row ${operatorClass(x.name)}"><span class="operator-name ${operatorClass(x.name)}"><i></i>${x.name.split(' ')[0]}</span><div class="bar-track"><div class="bar-fill" style="width:${x.value/max*100}%"></div></div><strong>${x.value}</strong></div>`).join('')}
+function renderTurns(){const q=$('#turnSearch')?.value?.toLowerCase()||'';const type=$('#turnTypeFilter')?.value||'';const status=$('#turnStatusFilter')?.value||'';const rows=state.turns.filter(t=>[t.operator,t.gipPenale,t.gipCivile].join(' ').toLowerCase().includes(q)).filter(t=>!type||(type==='Penale'?t.gipPenale:t.gipCivile)).filter(t=>!status||turnStatus(t)===status).sort((a,b)=>a.date.localeCompare(b.date));$('#turnsBody').innerHTML=rows.map(t=>`<tr><td><strong>${fmtDate(t.date)}</strong></td><td>${t.operator?operatorNameHtml(t.operator):'—'}</td><td>${t.gipPenale||'—'}</td><td>${t.gipCivile||'—'}</td><td>${badge(turnStatus(t))}</td><td>${t.notes||''}</td><td><div class="row-actions"><button class="btn ghost edit-turn" data-id="${t.id}">Modifica</button><button class="btn ghost delete-turn" data-id="${t.id}">Elimina</button></div></td></tr>`).join('')||'<tr><td colspan="7">Nessun turno trovato.</td></tr>'}
 function renderLeaves(){
  const today=new Date().toISOString().slice(0,10);
  const q=$('#leaveSearch')?.value?.toLowerCase()||'';
@@ -125,7 +127,7 @@ function renderLeaves(){
  $('#leaveDaysKpi').textContent=state.leaves.filter(l=>l.status==='Approvata').reduce((n,l)=>n+daysInclusive(l.start,l.end),0);
  $('#leaveTodayKpi').textContent=state.leaves.filter(l=>l.status==='Approvata'&&between(today,l.start,l.end)).length;
  $('#leaveConflictsKpi').textContent=state.leaves.filter(leaveHasConflict).length;
- $('#leaveOverview').innerHTML=rows.map(l=>`<article class="leave-wide-row ${leaveHasConflict(l)?'has-conflict':''} ${selectedLeaveIds.has(l.id)?'is-selected':''}"><label class="leave-select" title="Seleziona questo periodo per la richiesta email"><input class="leave-request-check" type="checkbox" data-id="${l.id}" ${selectedLeaveIds.has(l.id)?'checked':''}><span></span></label><div class="leave-avatar">${l.operator.split(' ').map(x=>x[0]).slice(0,2).join('')}</div><div class="leave-main"><span>Operatore</span><strong>${l.operator}</strong>${l.notes?`<small>${l.notes}</small>`:''}</div><div><span>Periodo</span><strong>${fmtDate(l.start,{day:'2-digit',month:'long'})} – ${fmtDate(l.end,{day:'2-digit',month:'long',year:'numeric'})}</strong></div><div><span>Durata</span><strong>${daysInclusive(l.start,l.end)} ${daysInclusive(l.start,l.end)===1?'giorno':'giorni'}</strong></div><div><span>Situazione</span><strong>${leaveTiming(l)}</strong>${leaveHasConflict(l)?'<small class="conflict-text">Turno durante le ferie</small>':''}</div><div>${badge(l.status)}</div><div class="row-actions"><button class="btn ghost edit-leave" data-id="${l.id}">Modifica</button><button class="btn ghost delete-leave" data-id="${l.id}">Elimina</button></div></article>`).join('')||'<p class="muted">Nessun periodo di ferie corrisponde ai filtri.</p>';
+ $('#leaveOverview').innerHTML=rows.map(l=>`<article class="leave-wide-row ${operatorClass(l.operator)} ${leaveHasConflict(l)?'has-conflict':''} ${selectedLeaveIds.has(l.id)?'is-selected':''}"><label class="leave-select" title="Seleziona questo periodo per la richiesta email"><input class="leave-request-check" type="checkbox" data-id="${l.id}" ${selectedLeaveIds.has(l.id)?'checked':''}><span></span></label><div class="leave-avatar ${operatorClass(l.operator)}">${l.operator.split(' ').map(x=>x[0]).slice(0,2).join('')}</div><div class="leave-main"><span>Operatore</span><strong class="operator-name ${operatorClass(l.operator)}"><i></i>${l.operator}</strong>${l.notes?`<small>${l.notes}</small>`:''}</div><div><span>Periodo</span><strong>${fmtDate(l.start,{day:'2-digit',month:'long'})} – ${fmtDate(l.end,{day:'2-digit',month:'long',year:'numeric'})}</strong></div><div><span>Durata</span><strong>${daysInclusive(l.start,l.end)} ${daysInclusive(l.start,l.end)===1?'giorno':'giorni'}</strong></div><div><span>Situazione</span><strong>${leaveTiming(l)}</strong>${leaveHasConflict(l)?'<small class="conflict-text">Turno durante le ferie</small>':''}</div><div>${badge(l.status)}</div><div class="row-actions"><button class="btn ghost edit-leave" data-id="${l.id}">Modifica</button><button class="btn ghost delete-leave" data-id="${l.id}">Elimina</button></div></article>`).join('')||'<p class="muted">Nessun periodo di ferie corrisponde ai filtri.</p>';
  $('#leaveBody').innerHTML=rows.map(l=>`<tr class="${selectedLeaveIds.has(l.id)?'is-selected':''}"><td><input class="leave-request-check" type="checkbox" data-id="${l.id}" aria-label="Seleziona periodo" ${selectedLeaveIds.has(l.id)?'checked':''}></td><td>${l.operator}</td><td>${fmtDate(l.start)}</td><td>${fmtDate(l.end)}</td><td>${daysInclusive(l.start,l.end)}</td><td>${badge(l.status)}</td><td>${l.notes||''}</td><td><div class="row-actions"><button class="btn ghost edit-leave" data-id="${l.id}">Modifica</button><button class="btn ghost delete-leave" data-id="${l.id}">Elimina</button></div></td></tr>`).join('')||'<tr><td colspan="8">Nessuna ferie trovata.</td></tr>';
  updateLeaveRequestToolbar();
 }
@@ -195,20 +197,25 @@ function openLeaveRequestEmail(){
 }
 
 function renderLeaveVisuals(){
- const histogram=$('#leaveHistogram'),calendar=$('#leaveAnnualCalendar'),filter=$('#leaveVisualOperator');
- if(!histogram||!calendar||!filter)return;
+ const histogram=$('#leaveHistogram'),calendar=$('#leaveAnnualCalendar'),filter=$('#leaveVisualOperator'),daily=$('#leaveDailyHistogram'),detailMonth=$('#leaveDetailMonth');
+ if(!histogram||!calendar||!filter||!daily||!detailMonth)return;
  const current=filter.value;
  filter.innerHTML='<option value="">Tutti gli operatori</option>'+state.operators.map(x=>`<option ${x===current?'selected':''}>${x}</option>`).join('');
  const leaves=visualLeaves();
  const monthTotals=Array.from({length:12},(_,month)=>{
-   let total=0;const end=new Date(2026,month+1,0).getDate();
-   for(let day=1;day<=end;day++){const iso=`2026-${String(month+1).padStart(2,'0')}-${String(day).padStart(2,'0')}`;total+=leaveDayInfo(iso,leaves).absent.length}
+   let total=0;
+   const end=new Date(2026,month+1,0).getDate();
+   for(let day=1;day<=end;day++){
+     const iso=`2026-${String(month+1).padStart(2,'0')}-${String(day).padStart(2,'0')}`;
+     total+=leaveDayInfo(iso,leaves).absent.length;
+   }
    return total;
  });
  const maxValue=Math.max(1,...monthTotals);
  const tickStep=maxValue<=12?1:Math.ceil(maxValue/8);
  const chartMax=Math.max(1,Math.ceil(maxValue/tickStep)*tickStep);
- const ticks=[];for(let v=chartMax;v>=0;v-=tickStep)ticks.push(v);
+ const ticks=[];
+ for(let v=chartMax;v>=0;v-=tickStep)ticks.push(v);
  const monthDetails=months.map((_,month)=>{
    const byOperator={};
    const daysInMonth=new Date(2026,month+1,0).getDate();
@@ -219,7 +226,7 @@ function renderLeaveVisuals(){
    return byOperator;
  });
  histogram.innerHTML=`
-   <div class="histogram-axis-title">Giorni di ferie</div>
+   <div class="histogram-axis-title">Giorni di ferie per mese</div>
    <div class="histogram-y-axis">${ticks.map(v=>`<span style="top:${(chartMax-v)/chartMax*100}%">${v}</span>`).join('')}</div>
    <div class="histogram-plot">
      <div class="histogram-grid">${ticks.map(v=>`<i style="top:${(chartMax-v)/chartMax*100}%"></i>`).join('')}</div>
@@ -228,25 +235,63 @@ function renderLeaveVisuals(){
        const height=total?Math.max(4,total/chartMax*100):0;
        const detail=Object.entries(monthDetails[i]).sort((a,b)=>b[1]-a[1]).map(([name,value])=>`${name}: ${value} ${value===1?'giorno':'giorni'}`).join(' · ');
        const tooltip=`${m}: ${total} ${total===1?'giorno':'giorni'}${detail?' — '+detail:''}`;
-       return `<div class="histogram-col" tabindex="0" title="${tooltip.replace(/"/g,'&quot;')}" aria-label="${tooltip.replace(/"/g,'&quot;')}"><div class="histogram-value">${total||''}</div><div class="histogram-track"><div class="histogram-bar" style="height:${height}%"></div></div><div class="histogram-label">${m.slice(0,3)}</div></div>`;
+       const segments=Object.entries(monthDetails[i]).filter(([,value])=>value>0).map(([name,value])=>`<span class="histogram-segment ${operatorClass(name)}" style="height:${value/chartMax*100}%" title="${name}: ${value} ${value===1?'giorno':'giorni'}"></span>`).join('');
+       return `<div class="histogram-col" tabindex="0" title="${tooltip.replace(/"/g,'&quot;')}" aria-label="${tooltip.replace(/"/g,'&quot;')}"><div class="histogram-value">${total||''}</div><div class="histogram-track"><div class="histogram-stack" style="height:${height}%">${segments}</div></div><div class="histogram-label">${m.slice(0,3)}</div></div>`;
      }).join('')}</div>
    </div>`;
+
+ const selectedMonth=Math.max(0,Math.min(11,Number(detailMonth.value||6)));
+ detailMonth.innerHTML=months.map((m,i)=>`<option value="${i}" ${i===selectedMonth?'selected':''}>${m} 2026</option>`).join('');
+ const daysInSelectedMonth=new Date(2026,selectedMonth+1,0).getDate();
+ const dailyValues=[];
+ for(let day=1;day<=daysInSelectedMonth;day++){
+   const iso=`2026-${String(selectedMonth+1).padStart(2,'0')}-${String(day).padStart(2,'0')}`;
+   const info=leaveDayInfo(iso,leaves);
+   const turn=state.turns.find(t=>t.date===iso);
+   const byOperator={};
+   info.absent.forEach(l=>{byOperator[l.operator]=(byOperator[l.operator]||0)+1});
+   dailyValues.push({day,total:info.absent.length,byOperator,turn,conflict:info.conflicts.length>0});
+ }
+ const dailyMax=Math.max(1,...dailyValues.map(x=>x.total));
+ const dailyTicks=[];
+ for(let v=dailyMax;v>=0;v--)dailyTicks.push(v);
+ daily.innerHTML=`
+   <div class="daily-axis-title">Persone assenti per giorno · ${months[selectedMonth]} 2026</div>
+   <div class="daily-y-axis">${dailyTicks.map(v=>`<span style="top:${(dailyMax-v)/dailyMax*100}%">${v}</span>`).join('')}</div>
+   <div class="daily-plot">
+     <div class="daily-grid">${dailyTicks.map(v=>`<i style="top:${(dailyMax-v)/dailyMax*100}%"></i>`).join('')}</div>
+     <div class="daily-bars">${dailyValues.map(item=>{
+       const height=item.total?Math.max(8,item.total/dailyMax*100):2;
+       const detail=Object.entries(item.byOperator).map(([name,value])=>`${name}: ${value}`).join(' · ');
+       const turnText=item.turn?`Turno del sabato: ${item.turn.operator||'da assegnare'}${item.turn.gipPenale?` · GIP Penale: ${item.turn.gipPenale}`:''}${item.turn.gipCivile?` · GIP Civile: ${item.turn.gipCivile}`:''}`:'';
+       const tooltip=`${item.day} ${months[selectedMonth]} 2026 — ${item.total} ${item.total===1?'persona assente':'persone assenti'}${detail?` — ${detail}`:''}${turnText?` — ${turnText}`:''}${item.conflict?' — Conflitto ferie/turno':''}`;
+       const segments=Object.entries(item.byOperator).map(([name,value])=>`<span class="histogram-segment ${operatorClass(name)}" style="height:${value/dailyMax*100}%"></span>`).join('');
+       const saturdayClass=item.turn?' has-saturday':'';
+       const conflictClass=item.conflict?' has-conflict':'';
+       return `<div class="daily-col${saturdayClass}${conflictClass}" tabindex="0" title="${tooltip.replace(/"/g,'&quot;')}" aria-label="${tooltip.replace(/"/g,'&quot;')}"><div class="daily-value">${item.total||''}</div><div class="daily-track"><div class="histogram-stack" style="height:${height}%">${segments||'<span class="daily-empty-bar"></span>'}</div></div><div class="daily-label">${item.day}</div>${item.turn?'<span class="daily-saturday-marker">S</span>':''}</div>`;
+     }).join('')}</div>
+   </div>`;
+
  calendar.innerHTML=months.map((monthName,month)=>{
    const first=new Date(2026,month,1),days=new Date(2026,month+1,0).getDate(),offset=(first.getDay()+6)%7;
    let cells=['L','M','M','G','V','S','D'].map(d=>`<span class="annual-weekday">${d}</span>`).join('');
    cells+='<span class="annual-empty"></span>'.repeat(offset);
    for(let day=1;day<=days;day++){
-     const iso=`2026-${String(month+1).padStart(2,'0')}-${String(day).padStart(2,'0')}`;const info=leaveDayInfo(iso,leaves);
-     const count=info.absent.length;const cls=info.conflicts.length?'conflict':count>=3?'many':count===2?'two':count===1?'one':'';
-     const absentNames=info.absent.map(l=>l.operator);
+     const iso=`2026-${String(month+1).padStart(2,'0')}-${String(day).padStart(2,'0')}`;
+     const info=leaveDayInfo(iso,leaves);
+     const count=info.absent.length;
      const turn=state.turns.find(t=>t.date===iso);
+     const absentNames=info.absent.map(l=>l.operator);
+     const cls=[info.conflicts.length?'conflict':'',count>=3?'many':count===2?'two':count===1?'one':'',turn?'has-saturday':'',turn&&count?'mixed':''].filter(Boolean).join(' ');
      const details={date:`${day} ${monthName} 2026`,absent:absentNames,conflict:info.conflicts.length>0,operator:turn?.operator||'',gipPenale:turn?.gipPenale||'',gipCivile:turn?.gipCivile||''};
-     cells+=`<span class="annual-day ${cls}" data-details="${encodeURIComponent(JSON.stringify(details))}" tabindex="0" aria-label="Dettagli ${day} ${monthName}"><b>${day}</b>${count?`<small>${count}</small>`:''}</span>`;
+     const dots=[...new Set(absentNames)].map(name=>`<i class="operator-dot ${operatorClass(name)}"></i>`).join('');
+     cells+=`<span class="annual-day ${cls}" data-details="${encodeURIComponent(JSON.stringify(details))}" tabindex="0" aria-label="Dettagli ${day} ${monthName}"><b>${day}</b>${turn?'<u class="annual-saturday-flag"></u>':''}${dots?`<em class="annual-operator-dots">${dots}</em>`:''}${count?`<small>${count}</small>`:''}</span>`;
    }
    return `<article class="annual-month"><h4>${monthName}</h4><div class="annual-month-grid">${cells}</div></article>`;
  }).join('');
  setupAnnualDayTooltips();
 }
+
 function renderPeople(){renderPeopleList('#operatorsList',state.operators,'operator');renderPeopleList('#criminalList',state.gipPenale,'gipPenale');renderPeopleList('#civilList',state.gipCivile,'gipCivile')}
 function renderPeopleList(sel,items,type){$(sel).innerHTML=items.map((x,i)=>`<div class="person-row"><span>${x}</span><button class="icon-btn delete-person" data-type="${type}" data-index="${i}">×</button></div>`).join('')}
 function timelineHtml(items){return items.map(a=>`<div class="timeline-item"><strong>${a.action}</strong><small>${a.user} · ${new Intl.DateTimeFormat('it-IT',{dateStyle:'short',timeStyle:'short'}).format(new Date(a.when))}</small></div>`).join('')||'<p class="muted">Nessuna modifica registrata.</p>'}
@@ -257,7 +302,7 @@ function setupAnnualDayTooltips(){
  const show=(el,e)=>{
    let details;try{details=JSON.parse(decodeURIComponent(el.dataset.details||''))}catch{return}
    const ferie=details.absent?.length?`<div><strong>In ferie</strong>${details.absent.map(n=>`<span>${n}</span>`).join('')}</div>`:'<div><strong>Ferie</strong><span>Nessuna persona assente</span></div>';
-   const turno=(details.operator||details.gipPenale||details.gipCivile)?`<div class="tooltip-turn"><strong>Turno</strong><span>Operatore: ${details.operator||'da assegnare'}</span><span>GIP Penale: ${details.gipPenale||'da assegnare'}</span>${details.gipCivile?`<span>GIP Civile: ${details.gipCivile}</span>`:''}</div>`:'';
+   const turno=(details.operator||details.gipPenale||details.gipCivile)?`<div class="tooltip-turn"><strong>Sabato/Turno</strong><span>Operatore: ${details.operator||'da assegnare'}</span><span>GIP Penale: ${details.gipPenale||'da assegnare'}</span>${details.gipCivile?`<span>GIP Civile: ${details.gipCivile}</span>`:''}</div>`:'';
    const conflict=details.conflict?'<div class="tooltip-conflict">⚠ Conflitto tra turno e ferie</div>':'';
    tooltip.innerHTML=`<b class="tooltip-date">${details.date}</b>${ferie}${turno}${conflict}`;
    tooltip.classList.add('show');positionCalendarTooltip(e,el,tooltip);
@@ -281,7 +326,7 @@ function positionCalendarTooltip(e,el,tooltip){
  tooltip.style.left=`${x}px`;tooltip.style.top=`${y}px`;
 }
 
-function renderCalendar(){const year=2026,month=calendarMonth;$('#monthSelect').value=String(month);const first=new Date(year,month,1),last=new Date(year,month+1,0);const start=(first.getDay()+6)%7;let html=['Lun','Mar','Mer','Gio','Ven','Sab','Dom'].map(x=>`<div class="calendar-cell calendar-head">${x}</div>`).join('');for(let i=0;i<42;i++){const day=i-start+1;const d=new Date(year,month,day);const inMonth=day>=1&&day<=last.getDate();const iso=d.toISOString().slice(0,10);const turn=state.turns.find(t=>t.date===iso);const leaves=state.leaves.filter(l=>l.status!=='Rifiutata'&&between(iso,l.start,l.end));let pills='';if(turn){pills+=`<div class="event-pill ${getConflict(turn)?'conflict':'turn'}">${turn.operator||'<span class="unassigned">Turno da assegnare</span>'}</div>`;if(turn.gipPenale)pills+=`<div class="event-pill turn">P: ${turn.gipPenale}</div>`;if(turn.gipCivile)pills+=`<div class="event-pill civil">C: ${turn.gipCivile}</div>`}leaves.forEach(l=>pills+=`<div class="event-pill leave">Ferie: ${l.operator.split(' ')[0]}</div>`);html+=`<div class="calendar-cell ${inMonth?'':'muted-day'}"><div class="day-number">${d.getDate()}</div>${pills}</div>`}$('#calendarGrid').innerHTML=html}
+function renderCalendar(){const year=2026,month=calendarMonth;$('#monthSelect').value=String(month);const first=new Date(year,month,1),last=new Date(year,month+1,0);const start=(first.getDay()+6)%7;let html=['Lun','Mar','Mer','Gio','Ven','Sab','Dom'].map(x=>`<div class="calendar-cell calendar-head">${x}</div>`).join('');for(let i=0;i<42;i++){const day=i-start+1;const d=new Date(year,month,day);const inMonth=day>=1&&day<=last.getDate();const iso=d.toISOString().slice(0,10);const turn=state.turns.find(t=>t.date===iso);const leaves=state.leaves.filter(l=>l.status!=='Rifiutata'&&between(iso,l.start,l.end));let pills='';if(turn){pills+=`<div class="event-pill ${getConflict(turn)?'conflict':'turn'}">${turn.operator||'<span class="unassigned">Turno da assegnare</span>'}</div>`;if(turn.gipPenale)pills+=`<div class="event-pill turn">P: ${turn.gipPenale}</div>`;if(turn.gipCivile)pills+=`<div class="event-pill civil">C: ${turn.gipCivile}</div>`}leaves.forEach(l=>pills+=`<div class="event-pill leave ${operatorClass(l.operator)}"><i></i>Ferie: ${l.operator.split(' ')[0]}</div>`);html+=`<div class="calendar-cell ${inMonth?'':'muted-day'}"><div class="day-number">${d.getDate()}</div>${pills}</div>`}$('#calendarGrid').innerHTML=html}
 function fillSelects(){$('#turnOperator').innerHTML=optionList(state.operators,'','Seleziona operatore');$('#turnCriminal').innerHTML=optionList(state.gipPenale);$('#turnCivil').innerHTML=optionList(state.gipCivile);$('#leaveOperator').innerHTML=optionList(state.operators,'','Seleziona operatore');const f=$('#leaveOperatorFilter');if(f){const current=f.value;f.innerHTML='<option value="">Tutti gli operatori</option>'+state.operators.map(x=>`<option ${x===current?'selected':''}>${x}</option>`).join('')}}
 function openTurn(id){const t=state.turns.find(x=>x.id===id)||{id:'',date:'',operator:'',gipPenale:'',gipCivile:'',notes:''};$('#turnDialogTitle').textContent=id?'Modifica turno':'Nuovo turno';$('#turnId').value=t.id;$('#turnDate').value=t.date;$('#turnOperator').innerHTML=optionList(state.operators,t.operator,'Seleziona operatore');$('#turnCriminal').innerHTML=optionList(state.gipPenale,t.gipPenale);$('#turnCivil').innerHTML=optionList(state.gipCivile,t.gipCivile);$('#turnNotes').value=t.notes;$('#turnDialog').showModal()}
 function openLeave(id){const l=state.leaves.find(x=>x.id===id)||{id:'',operator:'',start:'',end:'',status:'Richiesta',notes:''};$('#leaveDialogTitle').textContent=id?'Modifica ferie':'Inserisci ferie';$('#leaveId').value=l.id;$('#leaveOperator').innerHTML=optionList(state.operators,l.operator,'Seleziona operatore');$('#leaveStart').value=l.start;$('#leaveEnd').value=l.end;$('#leaveStatus').value=l.status;$('#leaveNotes').value=l.notes;$('#leaveDialog').showModal()}
@@ -475,6 +520,7 @@ document.addEventListener('click',async e=>{let b;if(b=e.target.closest('.edit-t
 $('#personForm').addEventListener('submit',async e=>{e.preventDefault();const type=$('#personType').value,name=$('#personName').value.trim();if(!['operator','gipPenale','gipCivile'].includes(type)||!name)return toast('Inserisci un nominativo valido');if(state[type].some(x=>x.toLowerCase()===name.toLowerCase()))return toast('Il nominativo è già presente');const table=type==='operator'?'operatori':'gip';const payload=type==='operator'?{nome:name,created_by:currentUser.id}:{nome:name,tipo:type==='gipPenale'?'PENALE':'CIVILE',created_by:currentUser.id};const {error}=await supabaseClient.from(table).insert(payload);if(error)return toast(`Errore: ${error.message}`);await loadRemoteState();$('#personDialog').close();renderAll();toast('Nominativo aggiunto correttamente')});
 $$('.close-person').forEach(b=>b.addEventListener('click',()=>$('#personDialog').close()));
 ['turnSearch','turnTypeFilter','turnStatusFilter'].forEach(id=>$('#'+id).addEventListener('input',renderTurns));['leaveSearch','leaveOperatorFilter','leaveStatusFilter','leaveTimeFilter'].forEach(id=>$('#'+id)?.addEventListener('input',renderLeaves));$('#leaveVisualOperator')?.addEventListener('input',renderLeaveVisuals);
+$('#leaveDetailMonth')?.addEventListener('input',renderLeaveVisuals);
 
 document.addEventListener('change',e=>{
   const c=e.target.closest('.leave-request-check');

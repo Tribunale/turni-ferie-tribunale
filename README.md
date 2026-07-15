@@ -18,8 +18,10 @@ Correzioni principali:
 Commit consigliato: `Versione 4 definitiva verificata`
 
 
-## Versione 4.1
+## Versione 4.2
 - Selezione di uno o più periodi di ferie.
 - Generazione automatica del testo per il dirigente.
 - Copia del testo e apertura dell'email già compilata.
 - Destinatario memorizzato solo nel browser.
+
+- Versione 4.3: aggiunti istogramma giornaliero ferie con giorni sotto il reticolo e calendario ferie/sabati più integrato.
