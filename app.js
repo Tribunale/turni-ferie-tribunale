@@ -1,5 +1,5 @@
 'use strict';
-const APP_VERSION='3.3.0';
+const APP_VERSION='4.0.0';
 const STORAGE_KEY='turni-ferie-2026-v2';
 const SUPABASE_URL='https://ztamohdnmpivcojxyvcv.supabase.co';
 const SUPABASE_PUBLISHABLE_KEY='sb_publishable_4YeUzoSUbtWq57ylQPBIqw_mvCcJsHd';
@@ -39,7 +39,7 @@ async function loadRemoteState(){
   };
   const user=(await supabaseClient.auth.getUser()).data.user;
   const pr=profileRes.data||{};
-  currentUser={id:user.id,name:pr.nome||user.email.split('@')[0],email:user.email,role:pr.ruolo||'operatore'};
+  currentUser={id:user.id,name:pr.nome||user.email.split('@')[0],email:user.email,role:pr.ruolo||'operatore',attivo:pr.attivo!==false};
 }
 async function getId(map,name){return name?map.get(name)||null:null}
 
@@ -228,6 +228,9 @@ function renderCalendar(){const year=2026,month=calendarMonth;$('#monthSelect').
 function fillSelects(){$('#turnOperator').innerHTML=optionList(state.operators,'','Seleziona operatore');$('#turnCriminal').innerHTML=optionList(state.gipPenale);$('#turnCivil').innerHTML=optionList(state.gipCivile);$('#leaveOperator').innerHTML=optionList(state.operators,'','Seleziona operatore');const f=$('#leaveOperatorFilter');if(f){const current=f.value;f.innerHTML='<option value="">Tutti gli operatori</option>'+state.operators.map(x=>`<option ${x===current?'selected':''}>${x}</option>`).join('')}}
 function openTurn(id){const t=state.turns.find(x=>x.id===id)||{id:'',date:'',operator:'',gipPenale:'',gipCivile:'',notes:''};$('#turnDialogTitle').textContent=id?'Modifica turno':'Nuovo turno';$('#turnId').value=t.id;$('#turnDate').value=t.date;$('#turnOperator').innerHTML=optionList(state.operators,t.operator,'Seleziona operatore');$('#turnCriminal').innerHTML=optionList(state.gipPenale,t.gipPenale);$('#turnCivil').innerHTML=optionList(state.gipCivile,t.gipCivile);$('#turnNotes').value=t.notes;$('#turnDialog').showModal()}
 function openLeave(id){const l=state.leaves.find(x=>x.id===id)||{id:'',operator:'',start:'',end:'',status:'Richiesta',notes:''};$('#leaveDialogTitle').textContent=id?'Modifica ferie':'Inserisci ferie';$('#leaveId').value=l.id;$('#leaveOperator').innerHTML=optionList(state.operators,l.operator,'Seleziona operatore');$('#leaveStart').value=l.start;$('#leaveEnd').value=l.end;$('#leaveStatus').value=l.status;$('#leaveNotes').value=l.notes;$('#leaveDialog').showModal()}
+const requiredIds=['loginForm','loginEmail','loginPassword','forgotPasswordBtn','forgotPasswordDialog','forgotPasswordForm','forgotPasswordEmail','forgotPasswordStatus','recoveryPasswordDialog','recoveryPasswordForm','recoveryPassword','recoveryPasswordConfirm','profileDialog','profileForm'];
+for(const id of requiredIds){if(!document.getElementById(id))throw new Error(`Elemento interfaccia mancante: ${id}`)}
+
 $('#loginForm').addEventListener('submit',async e=>{
   e.preventDefault();
   const btn=e.submitter||$('#loginForm button[type="submit"]');

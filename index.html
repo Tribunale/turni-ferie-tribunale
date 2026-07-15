@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <meta name="theme-color" content="#315f63" />
   <title>Turni & Ferie</title>
-    <link rel="stylesheet" href="styles.css?v=3.3.0" />
+    <link rel="stylesheet" href="styles.css?v=4.0.0" />
 </head>
 <body>
   <div id="toast" class="toast" aria-live="polite"></div>
@@ -27,7 +27,7 @@
         <button class="btn primary" type="submit">Accedi</button>
       </form>
       <p id="loginStatus" class="login-status" aria-live="polite"></p>
-      <button id="forgotPasswordBtn" class="text-button" type="button">Password dimenticata?</button>
+      <button id="forgotPasswordBtn" class="text-button" type="button">Password dimenticata?</button><p class="app-version">Versione 4.0</p>
     </div>
   </section>
 
@@ -35,7 +35,7 @@
     <aside class="sidebar">
       <div class="sidebar-brand">
         <div class="brand-mark small">TF</div>
-        <div><strong>Turni & Ferie</strong><span>Anno 2026</span></div>
+        <div><strong>Turni & Ferie</strong><span>Gestione condivisa</span></div>
       </div>
       <nav id="mainNav">
         <button class="nav-item active" data-view="dashboard">Dashboard</button>
@@ -271,7 +271,44 @@
     </form>
   </dialog>
 
+  <dialog id="forgotPasswordDialog">
+    <form id="forgotPasswordForm" class="modal-form">
+      <div class="modal-head">
+        <div><p class="eyebrow">RECUPERO ACCESSO</p><h3>Ripristina password</h3></div>
+        <button type="button" class="icon-btn close-forgot-password" aria-label="Chiudi">×</button>
+      </div>
+      <p class="muted">Inserisci l’indirizzo email associato al tuo account. Riceverai un collegamento per scegliere una nuova password.</p>
+      <label>Email dell’account
+        <input id="forgotPasswordEmail" type="email" autocomplete="email" placeholder="nome@esempio.it" required />
+      </label>
+      <p id="forgotPasswordStatus" class="form-status" role="status" aria-live="polite"></p>
+      <div class="modal-actions">
+        <button type="button" class="btn ghost close-forgot-password">Annulla</button>
+        <button id="sendResetLinkBtn" type="submit" class="btn primary">Invia link di ripristino</button>
+      </div>
+    </form>
+  </dialog>
+
+  <dialog id="recoveryPasswordDialog">
+    <form id="recoveryPasswordForm" class="modal-form">
+      <div class="modal-head">
+        <div><p class="eyebrow">NUOVA PASSWORD</p><h3>Scegli una nuova password</h3></div>
+      </div>
+      <p class="muted">Inserisci la nuova password due volte. Al termine verrai disconnesso e potrai accedere nuovamente.</p>
+      <label>Nuova password
+        <input id="recoveryPassword" type="password" autocomplete="new-password" minlength="8" placeholder="Almeno 8 caratteri" required />
+      </label>
+      <label>Conferma nuova password
+        <input id="recoveryPasswordConfirm" type="password" autocomplete="new-password" minlength="8" placeholder="Ripeti la password" required />
+      </label>
+      <p id="recoveryPasswordStatus" class="form-status" role="status" aria-live="polite"></p>
+      <div class="modal-actions">
+        <button id="saveRecoveryPasswordBtn" type="submit" class="btn primary">Salva nuova password</button>
+      </div>
+    </form>
+  </dialog>
+
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.49.8/dist/umd/supabase.min.js" crossorigin="anonymous"></script>
-  <script src="app.js?v=3.3.0"></script>
+  <script src="app.js?v=4.0.0"></script>
 </body>
 </html>
