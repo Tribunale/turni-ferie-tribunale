@@ -39,3 +39,5 @@ Commit consigliato: `Versione 4 definitiva verificata`
 - indicatore nota e testo nel tooltip.
 
 Prima del deploy eseguire AGGIORNAMENTO_SUPABASE_NOTE.sql nel SQL Editor di Supabase.
+
+- Versione 4.7: dashboard con riepilogo individuale dei sabati assegnati, svolti e da svolgere per Ivan Murelli, Michele Doris e Piero Canteri.

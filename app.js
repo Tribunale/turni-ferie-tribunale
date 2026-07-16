@@ -1,5 +1,5 @@
 'use strict';
-const APP_VERSION='4.6.0';
+const APP_VERSION='4.7.0';
 const STORAGE_KEY='turni-ferie-2026-v2';
 const SUPABASE_URL='https://ztamohdnmpivcojxyvcv.supabase.co';
 const SUPABASE_PUBLISHABLE_KEY='sb_publishable_4YeUzoSUbtWq57ylQPBIqw_mvCcJsHd';
@@ -89,9 +89,22 @@ function operatorNameHtml(name){return name?`<span class="operator-name ${operat
 function optionList(items,selected='',placeholder='Nessuno'){return `<option value="">${placeholder}</option>`+items.map(x=>`<option ${x===selected?'selected':''}>${x}</option>`).join('')}
 function renderAll(){renderDashboard();renderUpcoming();renderTurns();renderLeaves();renderLeaveVisuals();renderPeople();renderAudit();renderCalendar();fillSelects();fillLeaveEntrySelect();renderLeaveEntryPreview()}
 function renderDashboard(){
- const conflicts=state.turns.filter(getConflict).length;$('#kpiTurns').textContent=state.turns.length;$('#kpiCriminal').textContent=state.turns.filter(t=>t.gipPenale).length;$('#kpiCivil').textContent=state.turns.filter(t=>t.gipCivile).length;$('#kpiConflicts').textContent=conflicts;
+ const conflicts=state.turns.filter(getConflict).length;
+ const today=new Date().toISOString().slice(0,10);
+ const updateOperatorKpi=(name,totalId,doneId,futureId)=>{
+   const assigned=state.turns.filter(t=>t.operator===name&&t.date>='2026-01-01'&&t.date<='2026-12-31');
+   const done=assigned.filter(t=>t.date<today).length;
+   const future=assigned.filter(t=>t.date>=today).length;
+   $(totalId).textContent=assigned.length;
+   $(doneId).textContent=done;
+   $(futureId).textContent=future;
+ };
+ updateOperatorKpi('Ivan Murelli','#kpiIvanTotal','#kpiIvanDone','#kpiIvanFuture');
+ updateOperatorKpi('Michele Doris','#kpiMicheleTotal','#kpiMicheleDone','#kpiMicheleFuture');
+ updateOperatorKpi('Piero Canteri','#kpiPieroTotal','#kpiPieroDone','#kpiPieroFuture');
+ $('#kpiConflicts').textContent=conflicts;
  $('#alerts').innerHTML=conflicts?`<div class="alert red">Attenzione: sono presenti ${conflicts} conflitti tra turni e ferie approvate.</div>`:`<div class="alert green">Nessun conflitto rilevato tra turni e ferie approvate.</div>`;
- const today=new Date().toISOString().slice(0,10); const next=state.turns.filter(t=>t.date>=today).sort((a,b)=>a.date.localeCompare(b.date))[0];
+ const next=state.turns.filter(t=>t.date>=today).sort((a,b)=>a.date.localeCompare(b.date))[0];
  $('#nextSaturdayCard').innerHTML=next?`<div class="next-date">${fmtDate(next.date,{weekday:'long',day:'2-digit',month:'long'})}</div><div class="assignment-grid"><div class="assignment"><span>Operatore</span><strong>${operatorNameHtml(next.operator)}</strong></div><div class="assignment"><span>GIP Penale</span><strong>${assignmentValue(next.gipPenale)}</strong></div><div class="assignment"><span>GIP Civile</span><strong>${assignmentValue(next.gipCivile)}</strong></div></div>${next.notes?`<p class="muted">${next.notes}</p>`:''}`:'<p>Nessun turno futuro inserito.</p>';
  const counts=state.operators.map(o=>({name:o,value:state.turns.filter(t=>t.operator===o).length})); renderBars('#operatorBars',counts);
  const leaveCounts=state.operators.map(o=>({name:o,value:state.leaves.filter(l=>l.operator===o&&l.status!=='Rifiutata').reduce((s,l)=>s+daysInclusive(l.start,l.end),0)}));renderBars('#leaveBars',leaveCounts);
