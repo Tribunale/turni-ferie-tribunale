@@ -27,7 +27,7 @@
         <button class="btn primary" type="submit">Accedi</button>
       </form>
       <p id="loginStatus" class="login-status" aria-live="polite"></p>
-      <button id="forgotPasswordBtn" class="text-button" type="button">Password dimenticata?</button><p class="app-version">Versione 4.5</p>
+      <button id="forgotPasswordBtn" class="text-button" type="button">Password dimenticata?</button><p class="app-version">Versione 4.6</p>
     </div>
   </section>
 
@@ -43,6 +43,7 @@
         <button class="nav-item" data-view="upcoming">Prossimi sabati</button>
         <button class="nav-item" data-view="turns">Turni del sabato</button>
         <button class="nav-item" data-view="leave">Ferie</button>
+        <button class="nav-item nav-subitem" data-view="leave-entry">Inserisci ferie</button>
         <button class="nav-item" data-view="people">Operatori e GIP</button>
         <button class="nav-item" data-view="audit">Registro modifiche</button>
         <button id="accountNavBtn" class="nav-item account-nav" data-action="profile" type="button">Profilo e password</button>
@@ -197,6 +198,32 @@
         </article>
       </section>
 
+
+      <section id="leave-entry" class="view">
+        <article class="panel leave-entry-panel">
+          <div class="panel-head wrap">
+            <div><p class="eyebrow">NUOVA RICHIESTA</p><h3>Inserisci ferie</h3></div>
+          </div>
+          <form id="leaveEntryForm" class="leave-entry-form">
+            <div class="grid two">
+              <label>Operatore<select id="leaveEntryOperator" required></select></label>
+              <label>Stato<select id="leaveEntryStatus"><option>Richiesta</option><option>Approvata</option><option>Rifiutata</option></select></label>
+            </div>
+            <div class="grid two">
+              <label>Dal<input id="leaveEntryStart" type="date" required></label>
+              <label>Al<input id="leaveEntryEnd" type="date" required></label>
+            </div>
+            <label>Nota sul periodo<textarea id="leaveEntryNotes" rows="4" placeholder="Esempio: ricordarsi di avvisare il dirigente o verificare la sostituzione"></textarea></label>
+            <div id="leaveEntryPreview" class="leave-entry-preview"><p class="muted">Seleziona il periodo per visualizzare durata, sabati compresi ed eventuali conflitti.</p></div>
+            <div class="leave-entry-actions">
+              <button id="leaveEntryReset" class="btn ghost" type="button">Pulisci</button>
+              <button id="leaveEntrySave" class="btn primary" type="submit">Salva ferie</button>
+              <button id="leaveEntrySaveRequest" class="btn secondary" type="button">Salva e prepara richiesta</button>
+            </div>
+          </form>
+        </article>
+      </section>
+
       <section id="people" class="view">
         <div class="grid three">
           <article class="panel"><div class="panel-head"><div><p class="eyebrow">PERSONALE</p><h3>Operatori</h3></div><button class="btn ghost add-person" data-type="operator">+</button></div><div id="operatorsList" class="people-list"></div></article>
@@ -256,6 +283,14 @@
         <div class="day-action-buttons">
           <button id="dayManageTurnBtn" class="btn secondary" type="button">Inserisci turno del sabato</button>
           <button id="dayDeleteTurnBtn" class="btn danger" type="button" hidden>Elimina turno del sabato</button>
+        </div>
+      </section>
+      <section class="day-action-section">
+        <div class="day-action-section-head"><strong>Nota del giorno</strong></div>
+        <textarea id="dayNoteText" rows="4" placeholder="Scrivi un promemoria per questa data, passata o futura"></textarea>
+        <div class="day-action-buttons">
+          <button id="daySaveNoteBtn" class="btn secondary" type="button">Salva nota</button>
+          <button id="dayDeleteNoteBtn" class="btn danger" type="button" hidden>Elimina nota</button>
         </div>
       </section>
       <div class="modal-actions"><button class="btn ghost close-day-action" type="button">Chiudi</button></div>

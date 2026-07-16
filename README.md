@@ -29,3 +29,13 @@ Commit consigliato: `Versione 4 definitiva verificata`
 - Versione 4.4: colori operatori più distinti; caselle ferie colorate per operatore e divise in più colori; clic sul giorno per inserire ferie o gestire il turno del sabato.
 
 - Versione 4.5: gestione completa dal calendario: aggiunta, modifica e rimozione ferie per singolo giorno; inserimento, modifica ed eliminazione turno del sabato.
+
+
+## Versione 4.6
+- nuova voce di menu Inserisci ferie con pannello dedicato;
+- anteprima durata, sabati compresi e conflitti;
+- salvataggio e generazione immediata della richiesta;
+- note giornaliere condivise, modificabili dal calendario;
+- indicatore nota e testo nel tooltip.
+
+Prima del deploy eseguire AGGIORNAMENTO_SUPABASE_NOTE.sql nel SQL Editor di Supabase.
