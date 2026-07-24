@@ -41,3 +41,16 @@ Commit consigliato: `Versione 4 definitiva verificata`
 Prima del deploy eseguire AGGIORNAMENTO_SUPABASE_NOTE.sql nel SQL Editor di Supabase.
 
 - Versione 4.7: dashboard con riepilogo individuale dei sabati assegnati, svolti e da svolgere per Ivan Murelli, Michele Doris e Piero Canteri.
+
+- Versione 4.8: aggiunta pagina Promemoria turni per singolo operatore o prospetto completo, con copia, email e stampa/PDF.
+
+
+## Versione 5.0 consolidata
+- anno selezionabile e viste filtrate per anno;
+- destinatari condivisi in Supabase;
+- selezione manuale dei turni da comunicare;
+- tracciamento comunicazioni preparate/inviate;
+- controlli su duplicati, sovrapposizioni e conflitti prima del salvataggio;
+- registro modifiche più leggibile.
+
+Prima del deploy eseguire `AGGIORNAMENTO_SUPABASE_V5.sql` nel SQL Editor di Supabase.

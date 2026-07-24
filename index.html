@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <meta name="theme-color" content="#315f63" />
   <title>Turni & Ferie</title>
-    <link rel="stylesheet" href="styles.css?v=4.1.0" />
+    <link rel="stylesheet" href="styles.css?v=5.0.0" />
 </head>
 <body>
   <div id="toast" class="toast" aria-live="polite"></div>
@@ -27,7 +27,7 @@
         <button class="btn primary" type="submit">Accedi</button>
       </form>
       <p id="loginStatus" class="login-status" aria-live="polite"></p>
-      <button id="forgotPasswordBtn" class="text-button" type="button">Password dimenticata?</button><p class="app-version">Versione 4.7</p>
+      <button id="forgotPasswordBtn" class="text-button" type="button">Password dimenticata?</button><p class="app-version">Versione 5.0</p>
     </div>
   </section>
 
@@ -42,10 +42,12 @@
         <button class="nav-item" data-view="calendar">Calendario</button>
         <button class="nav-item" data-view="upcoming">Prossimi sabati</button>
         <button class="nav-item" data-view="turns">Turni del sabato</button>
+        <button class="nav-item nav-subitem" data-view="turn-reminders">Promemoria turni</button>
         <button class="nav-item" data-view="leave">Ferie</button>
         <button class="nav-item nav-subitem" data-view="leave-entry">Inserisci ferie</button>
         <button class="nav-item" data-view="people">Operatori e GIP</button>
         <button class="nav-item" data-view="audit">Registro modifiche</button>
+        <button class="nav-item" data-view="settings">Impostazioni</button>
         <button id="accountNavBtn" class="nav-item account-nav" data-action="profile" type="button">Profilo e password</button>
       </nav>
       <div class="sidebar-footer">
@@ -61,6 +63,7 @@
           <h2 id="pageTitle">Dashboard</h2>
         </div>
         <div class="top-actions">
+          <label class="year-control">Anno<select id="globalYearSelect"></select></label>
           <span id="todayLabel" class="date-chip"></span>
           <button id="exportBtn" class="btn secondary">Esporta dati</button>
         </div>
@@ -149,6 +152,34 @@
         </article>
       </section>
 
+      <section id="turn-reminders" class="view">
+        <article class="panel reminder-panel">
+          <div class="panel-head wrap">
+            <div><p class="eyebrow">COMUNICAZIONI</p><h3>Promemoria turni del sabato</h3><p class="muted">Prepara il prospetto per un singolo operatore oppure il riepilogo completo per il funzionario.</p></div>
+          </div>
+          <div class="reminder-controls">
+            <label>Destinatari<select id="reminderMode"><option value="operator">Singolo operatore</option><option value="all">Tutti gli operatori</option></select></label>
+            <label id="reminderOperatorWrap">Operatore<select id="reminderOperator"></select></label>
+            <label>Periodo<select id="reminderPeriod"><option value="future">Da oggi a dicembre</option><option value="all">Intero anno</option><option value="done">Già svolti</option></select></label>
+            <label>Email destinatario<input id="reminderRecipient" type="email" placeholder="nome@giustizia.it" /></label>
+          </div>
+          <div class="reminder-summary" id="reminderSummary"></div>
+          <div class="reminder-selection-head"><strong>Turni inclusi</strong><span>Seleziona manualmente i sabati da comunicare</span></div>
+          <div id="reminderTurnSelection" class="reminder-turn-selection"></div>
+          <div class="reminder-preview-grid">
+            <label>Oggetto<input id="reminderSubject" type="text" /></label>
+            <label>Testo della comunicazione<textarea id="reminderText" rows="16"></textarea></label>
+          </div>
+          <div class="reminder-actions">
+            <button id="copyReminderBtn" class="btn ghost" type="button">Copia testo</button>
+            <button id="printReminderBtn" class="btn ghost" type="button">Stampa / Salva PDF</button>
+            <button id="markReminderPreparedBtn" class="btn secondary" type="button">Segna preparata</button>
+            <button id="markReminderSentBtn" class="btn secondary" type="button">Segna inviata</button>
+            <button id="openReminderEmailBtn" class="btn primary" type="button">Apri email</button>
+          </div>
+        </article>
+      </section>
+
       <section id="leave" class="view">
         <div class="leave-kpis">
           <article class="mini-kpi"><span>Periodi inseriti</span><strong id="leavePeriodsKpi">0</strong></article>
@@ -230,6 +261,23 @@
           <article class="panel"><div class="panel-head"><div><p class="eyebrow">MAGISTRATI</p><h3>GIP Penale</h3></div><button class="btn ghost add-person" data-type="gipPenale">+</button></div><div id="criminalList" class="people-list"></div></article>
           <article class="panel"><div class="panel-head"><div><p class="eyebrow">MAGISTRATI</p><h3>GIP Civile</h3></div><button class="btn ghost add-person" data-type="gipCivile">+</button></div><div id="civilList" class="people-list"></div></article>
         </div>
+      </section>
+
+
+      <section id="settings" class="view">
+        <article class="panel settings-panel">
+          <div class="panel-head wrap"><div><p class="eyebrow">CONFIGURAZIONE</p><h3>Destinatari e comunicazioni</h3><p class="muted">Gli indirizzi vengono condivisi tra gli utenti autorizzati.</p></div></div>
+          <form id="settingsForm" class="settings-form">
+            <div class="grid two">
+              <label>Email dirigente<input id="settingsManagerEmail" type="email" placeholder="dirigente@giustizia.it"></label>
+              <label>Email funzionario<input id="settingsOfficialEmail" type="email" placeholder="funzionario@giustizia.it"></label>
+            </div>
+            <h4>Email operatori</h4>
+            <div id="settingsOperatorEmails" class="settings-operator-emails"></div>
+            <div class="modal-actions"><button id="saveSettingsBtn" class="btn primary" type="submit">Salva impostazioni</button></div>
+            <p id="settingsStatus" class="form-status"></p>
+          </form>
+        </article>
       </section>
 
       <section id="audit" class="view">

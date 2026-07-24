@@ -1,5 +1,5 @@
 'use strict';
-const APP_VERSION='4.7.0';
+const APP_VERSION='5.0.0';
 const STORAGE_KEY='turni-ferie-2026-v2';
 const SUPABASE_URL='https://ztamohdnmpivcojxyvcv.supabase.co';
 const SUPABASE_PUBLISHABLE_KEY='sb_publishable_4YeUzoSUbtWq57ylQPBIqw_mvCcJsHd';
@@ -15,15 +15,19 @@ const supabaseClient=window.supabase.createClient(SUPABASE_URL,SUPABASE_PUBLISHA
   global:{headers:{'x-client-info':`turni-ferie/${APP_VERSION}`}}
 });
 let operatorIds=new Map(), gipPenaleIds=new Map(), gipCivileIds=new Map();
+let selectedYear=new Date().getFullYear();
+let appSettings={managerEmail:'',officialEmail:'',operatorEmails:{}};
+const selectedReminderTurnIds=new Set();
 async function loadRemoteState(){
-  const [opRes,gipRes,turnRes,leaveRes,noteRes,auditRes,profileRes]=await Promise.all([
+  const [opRes,gipRes,turnRes,leaveRes,noteRes,auditRes,profileRes,settingsRes]=await Promise.all([
     supabaseClient.from('operatori').select('id,nome,attivo,ordine').eq('attivo',true).order('ordine').order('nome'),
     supabaseClient.from('gip').select('id,nome,tipo,attivo,ordine').eq('attivo',true).order('ordine').order('nome'),
     supabaseClient.from('turni_sabato').select('id,data_turno,note,confermato,operatore:operatori(id,nome),gip_penale:gip!turni_sabato_gip_penale_id_fkey(id,nome),gip_civile:gip!turni_sabato_gip_civile_id_fkey(id,nome)').order('data_turno'),
     supabaseClient.from('ferie').select('id,data_inizio,data_fine,stato,tipologia,note,operatore:operatori(id,nome)').order('data_inizio'),
     supabaseClient.from('note_giornaliere').select('id,data_nota,testo,autore_id,created_at,updated_at').order('data_nota'),
-    supabaseClient.from('registro_modifiche').select('id,tabella,operazione,record_id,eseguito_il').order('eseguito_il',{ascending:false}).limit(100),
-    supabaseClient.from('profili').select('id,nome,email,ruolo,attivo').eq('id',(await supabaseClient.auth.getUser()).data.user?.id).maybeSingle()
+    supabaseClient.from('registro_modifiche').select('id,tabella,operazione,record_id,dati_precedenti,dati_nuovi,eseguito_il').order('eseguito_il',{ascending:false}).limit(100),
+    supabaseClient.from('profili').select('id,nome,email,ruolo,attivo').eq('id',(await supabaseClient.auth.getUser()).data.user?.id).maybeSingle(),
+    supabaseClient.from('impostazioni_app').select('valore').eq('chiave','contatti').maybeSingle()
   ]);
   for(const r of [opRes,gipRes,turnRes,leaveRes,noteRes]) if(r.error) throw r.error;
   operatorIds=new Map((opRes.data||[]).map(x=>[x.nome,x.id]));
@@ -37,9 +41,12 @@ async function loadRemoteState(){
     turns:(turnRes.data||[]).map(x=>({id:String(x.id),date:x.data_turno,operator:x.operatore?.nome||'',gipPenale:x.gip_penale?.nome||'',gipCivile:x.gip_civile?.nome||'',notes:x.note||''})),
     leaves:(leaveRes.data||[]).map(x=>({id:String(x.id),operator:x.operatore?.nome||'',start:x.data_inizio,end:x.data_fine,status:({richiesta:'Richiesta',approvata:'Approvata',rifiutata:'Rifiutata'})[x.stato]||x.stato,notes:x.note||''})),
     notes:(noteRes.data||[]).map(x=>({id:String(x.id),date:x.data_nota,text:x.testo||'',authorId:x.autore_id||''})),
-    audit:(auditRes.data||[]).map(x=>({id:String(x.id),when:x.eseguito_il,user:'Sistema',action:`${x.operazione} · ${x.tabella}`}))
+    audit:(auditRes.data||[]).map(x=>({id:String(x.id),when:x.eseguito_il,user:'Sistema',action:formatAuditEntry(x)}))
   };
   const user=(await supabaseClient.auth.getUser()).data.user;
+  appSettings={managerEmail:'',officialEmail:'',operatorEmails:{},...(settingsRes.data?.valore||{})};
+  const years=[...(turnRes.data||[]).map(x=>Number(x.data_turno?.slice(0,4))),(new Date()).getFullYear()].filter(Boolean);
+  if(!years.includes(selectedYear)) selectedYear=Math.max(...years);
   const pr=profileRes.data||{};
   currentUser={id:user.id,name:pr.nome||user.email.split('@')[0],email:user.email,role:pr.ruolo||'operatore',attivo:pr.attivo!==false};
 }
@@ -87,12 +94,44 @@ function operatorColor(name=''){const c=operatorClass(name);return ({'op-michele
 function leaveCellBackground(names=[]){const unique=[...new Set(names)].slice(0,3);if(!unique.length)return '';if(unique.length===1)return operatorColor(unique[0]);if(unique.length===2)return `linear-gradient(90deg,${operatorColor(unique[0])} 0 50%,${operatorColor(unique[1])} 50% 100%)`;return `linear-gradient(90deg,${operatorColor(unique[0])} 0 33.333%,${operatorColor(unique[1])} 33.333% 66.666%,${operatorColor(unique[2])} 66.666% 100%)`}
 function operatorNameHtml(name){return name?`<span class="operator-name ${operatorClass(name)}"><i></i>${name}</span>`:'<span class="unassigned">Da assegnare</span>'}
 function optionList(items,selected='',placeholder='Nessuno'){return `<option value="">${placeholder}</option>`+items.map(x=>`<option ${x===selected?'selected':''}>${x}</option>`).join('')}
-function renderAll(){renderDashboard();renderUpcoming();renderTurns();renderLeaves();renderLeaveVisuals();renderPeople();renderAudit();renderCalendar();fillSelects();fillLeaveEntrySelect();renderLeaveEntryPreview()}
+
+function yearStart(){return `${selectedYear}-01-01`}
+function yearEnd(){return `${selectedYear}-12-31`}
+function formatAuditEntry(x){
+ const table=({turni_sabato:'turno',ferie:'periodo ferie',operatori:'operatore',gip:'GIP',note_giornaliere:'nota giornaliera'})[x.tabella]||x.tabella;
+ const op=({INSERT:'ha inserito',UPDATE:'ha modificato',DELETE:'ha eliminato'})[x.operazione]||x.operazione;
+ const before=x.dati_precedenti||{},after=x.dati_nuovi||{};
+ let detail='';
+ if(x.tabella==='turni_sabato') detail=` del ${fmtDate(after.data_turno||before.data_turno||'',{day:'numeric',month:'long',year:'numeric'})}`;
+ if(x.tabella==='ferie') detail=` dal ${fmtDate(after.data_inizio||before.data_inizio||'')} al ${fmtDate(after.data_fine||before.data_fine||'')}`;
+ return `${op} ${table}${detail}`;
+}
+function renderYearSelector(){
+ const el=$('#globalYearSelect');if(!el)return;
+ const years=[...new Set([...state.turns.map(t=>Number(t.date.slice(0,4))),...state.leaves.map(l=>Number(l.start.slice(0,4))),new Date().getFullYear(),selectedYear])].filter(Boolean).sort();
+ el.innerHTML=years.map(y=>`<option value="${y}" ${y===selectedYear?'selected':''}>${y}</option>`).join('');
+}
+function turnsInSelectedYear(){return state.turns.filter(t=>t.date>=yearStart()&&t.date<=yearEnd())}
+function validateTurnDraft(date,operator,id=''){
+ const warnings=[];
+ const duplicate=state.turns.find(t=>t.date===date&&t.id!==id);if(duplicate)warnings.push('Esiste già un turno in questa data.');
+ if(operator&&state.leaves.some(l=>l.status==='Approvata'&&l.operator===operator&&between(date,l.start,l.end)))warnings.push(`${operator} risulta in ferie.`);
+ return warnings;
+}
+function validateLeaveDraft(operator,start,end,id=''){
+ const warnings=[];
+ if(state.leaves.some(l=>l.id!==id&&l.operator===operator&&l.status!=='Rifiutata'&&start<=l.end&&end>=l.start))warnings.push('Esiste già un periodo sovrapposto per questo operatore.');
+ const conflicts=state.turns.filter(t=>t.operator===operator&&t.date>=start&&t.date<=end);if(conflicts.length)warnings.push(`Il periodo comprende ${conflicts.length} turno/i del sabato assegnato/i allo stesso operatore.`);
+ return warnings;
+}
+function confirmWarnings(warnings){return !warnings.length||confirm(`Controlla prima di salvare:\n\n- ${warnings.join('\n- ')}\n\nVuoi procedere comunque?`)}
+
+function renderAll(){renderYearSelector();renderDashboard();renderUpcoming();renderTurns();renderLeaves();renderLeaveVisuals();renderPeople();renderAudit();renderCalendar();fillSelects();fillLeaveEntrySelect();renderLeaveEntryPreview();renderTurnReminder();renderSettings()}
 function renderDashboard(){
  const conflicts=state.turns.filter(getConflict).length;
  const today=new Date().toISOString().slice(0,10);
  const updateOperatorKpi=(name,totalId,doneId,futureId)=>{
-   const assigned=state.turns.filter(t=>t.operator===name&&t.date>='2026-01-01'&&t.date<='2026-12-31');
+   const assigned=turnsInSelectedYear().filter(t=>t.operator===name);
    const done=assigned.filter(t=>t.date<today).length;
    const future=assigned.filter(t=>t.date>=today).length;
    $(totalId).textContent=assigned.length;
@@ -106,7 +145,7 @@ function renderDashboard(){
  $('#alerts').innerHTML=conflicts?`<div class="alert red">Attenzione: sono presenti ${conflicts} conflitti tra turni e ferie approvate.</div>`:`<div class="alert green">Nessun conflitto rilevato tra turni e ferie approvate.</div>`;
  const next=state.turns.filter(t=>t.date>=today).sort((a,b)=>a.date.localeCompare(b.date))[0];
  $('#nextSaturdayCard').innerHTML=next?`<div class="next-date">${fmtDate(next.date,{weekday:'long',day:'2-digit',month:'long'})}</div><div class="assignment-grid"><div class="assignment"><span>Operatore</span><strong>${operatorNameHtml(next.operator)}</strong></div><div class="assignment"><span>GIP Penale</span><strong>${assignmentValue(next.gipPenale)}</strong></div><div class="assignment"><span>GIP Civile</span><strong>${assignmentValue(next.gipCivile)}</strong></div></div>${next.notes?`<p class="muted">${next.notes}</p>`:''}`:'<p>Nessun turno futuro inserito.</p>';
- const counts=state.operators.map(o=>({name:o,value:state.turns.filter(t=>t.operator===o).length})); renderBars('#operatorBars',counts);
+ const counts=state.operators.map(o=>({name:o,value:turnsInSelectedYear().filter(t=>t.operator===o).length})); renderBars('#operatorBars',counts);
  const leaveCounts=state.operators.map(o=>({name:o,value:state.leaves.filter(l=>l.operator===o&&l.status!=='Rifiutata').reduce((s,l)=>s+daysInclusive(l.start,l.end),0)}));renderBars('#leaveBars',leaveCounts);
  $('#dashboardUpcoming').innerHTML=upcomingCardsHtml(getUpcomingTurns(4));
  $('#dashboardLeaves').innerHTML=leaveCardsHtml(getUpcomingLeaves(4));
@@ -222,9 +261,9 @@ function renderLeaveVisuals(){
  const leaves=visualLeaves();
  const monthTotals=Array.from({length:12},(_,month)=>{
    let total=0;
-   const end=new Date(2026,month+1,0).getDate();
+   const end=new Date(selectedYear,month+1,0).getDate();
    for(let day=1;day<=end;day++){
-     const iso=`2026-${String(month+1).padStart(2,'0')}-${String(day).padStart(2,'0')}`;
+     const iso=`${selectedYear}-${String(month+1).padStart(2,'0')}-${String(day).padStart(2,'0')}`;
      total+=leaveDayInfo(iso,leaves).absent.length;
    }
    return total;
@@ -236,9 +275,9 @@ function renderLeaveVisuals(){
  for(let v=chartMax;v>=0;v-=tickStep)ticks.push(v);
  const monthDetails=months.map((_,month)=>{
    const byOperator={};
-   const daysInMonth=new Date(2026,month+1,0).getDate();
+   const daysInMonth=new Date(selectedYear,month+1,0).getDate();
    for(let day=1;day<=daysInMonth;day++){
-     const iso=`2026-${String(month+1).padStart(2,'0')}-${String(day).padStart(2,'0')}`;
+     const iso=`${selectedYear}-${String(month+1).padStart(2,'0')}-${String(day).padStart(2,'0')}`;
      leaveDayInfo(iso,leaves).absent.forEach(l=>{byOperator[l.operator]=(byOperator[l.operator]||0)+1});
    }
    return byOperator;
@@ -259,11 +298,11 @@ function renderLeaveVisuals(){
    </div>`;
 
  const selectedMonth=Math.max(0,Math.min(11,Number(detailMonth.value||6)));
- detailMonth.innerHTML=months.map((m,i)=>`<option value="${i}" ${i===selectedMonth?'selected':''}>${m} 2026</option>`).join('');
- const daysInSelectedMonth=new Date(2026,selectedMonth+1,0).getDate();
+ detailMonth.innerHTML=months.map((m,i)=>`<option value="${i}" ${i===selectedMonth?'selected':''}>${m} ${selectedYear}</option>`).join('');
+ const daysInSelectedMonth=new Date(selectedYear,selectedMonth+1,0).getDate();
  const dailyValues=[];
  for(let day=1;day<=daysInSelectedMonth;day++){
-   const iso=`2026-${String(selectedMonth+1).padStart(2,'0')}-${String(day).padStart(2,'0')}`;
+   const iso=`${selectedYear}-${String(selectedMonth+1).padStart(2,'0')}-${String(day).padStart(2,'0')}`;
    const info=leaveDayInfo(iso,leaves);
    const turn=state.turns.find(t=>t.date===iso);
    const byOperator={};
@@ -274,7 +313,7 @@ function renderLeaveVisuals(){
  const dailyTicks=[];
  for(let v=dailyMax;v>=0;v--)dailyTicks.push(v);
  daily.innerHTML=`
-   <div class="daily-axis-title">Persone assenti per giorno · ${months[selectedMonth]} 2026</div>
+   <div class="daily-axis-title">Persone assenti per giorno · ${months[selectedMonth]} ${selectedYear}</div>
    <div class="daily-y-axis">${dailyTicks.map(v=>`<span style="top:${(dailyMax-v)/dailyMax*100}%">${v}</span>`).join('')}</div>
    <div class="daily-plot">
      <div class="daily-grid">${dailyTicks.map(v=>`<i style="top:${(dailyMax-v)/dailyMax*100}%"></i>`).join('')}</div>
@@ -282,7 +321,7 @@ function renderLeaveVisuals(){
        const height=item.total?Math.max(8,item.total/dailyMax*100):2;
        const detail=Object.entries(item.byOperator).map(([name,value])=>`${name}: ${value}`).join(' · ');
        const turnText=item.turn?`Turno del sabato: ${item.turn.operator||'da assegnare'}${item.turn.gipPenale?` · GIP Penale: ${item.turn.gipPenale}`:''}${item.turn.gipCivile?` · GIP Civile: ${item.turn.gipCivile}`:''}`:'';
-       const tooltip=`${item.day} ${months[selectedMonth]} 2026 — ${item.total} ${item.total===1?'persona assente':'persone assenti'}${detail?` — ${detail}`:''}${turnText?` — ${turnText}`:''}${item.conflict?' — Conflitto ferie/turno':''}`;
+       const tooltip=`${item.day} ${months[selectedMonth]} ${selectedYear} — ${item.total} ${item.total===1?'persona assente':'persone assenti'}${detail?` — ${detail}`:''}${turnText?` — ${turnText}`:''}${item.conflict?' — Conflitto ferie/turno':''}`;
        const segments=Object.entries(item.byOperator).map(([name,value])=>`<span class="histogram-segment ${operatorClass(name)}" style="height:${value/dailyMax*100}%"></span>`).join('');
        const saturdayClass=item.turn?' has-saturday':'';
        const conflictClass=item.conflict?' has-conflict':'';
@@ -291,18 +330,18 @@ function renderLeaveVisuals(){
    </div>`;
 
  calendar.innerHTML=months.map((monthName,month)=>{
-   const first=new Date(2026,month,1),days=new Date(2026,month+1,0).getDate(),offset=(first.getDay()+6)%7;
+   const first=new Date(selectedYear,month,1),days=new Date(selectedYear,month+1,0).getDate(),offset=(first.getDay()+6)%7;
    let cells=['L','M','M','G','V','S','D'].map(d=>`<span class="annual-weekday">${d}</span>`).join('');
    cells+='<span class="annual-empty"></span>'.repeat(offset);
    for(let day=1;day<=days;day++){
-     const iso=`2026-${String(month+1).padStart(2,'0')}-${String(day).padStart(2,'0')}`;
+     const iso=`${selectedYear}-${String(month+1).padStart(2,'0')}-${String(day).padStart(2,'0')}`;
      const info=leaveDayInfo(iso,leaves);
      const count=info.absent.length;
      const turn=state.turns.find(t=>t.date===iso);
      const absentNames=info.absent.map(l=>l.operator);
      const cls=[info.conflicts.length?'conflict':'',count>=3?'many':count===2?'two':count===1?'one':'',turn?'has-saturday':'',turn&&count?'mixed':''].filter(Boolean).join(' ');
      const dayNote=state.notes?.find(n=>n.date===iso);
-     const details={date:`${day} ${monthName} 2026`,absent:absentNames,conflict:info.conflicts.length>0,operator:turn?.operator||'',gipPenale:turn?.gipPenale||'',gipCivile:turn?.gipCivile||'',note:dayNote?.text||''};
+     const details={date:`${day} ${monthName} ${selectedYear}`,absent:absentNames,conflict:info.conflicts.length>0,operator:turn?.operator||'',gipPenale:turn?.gipPenale||'',gipCivile:turn?.gipCivile||'',note:dayNote?.text||''};
      const dots=[...new Set(absentNames)].map(name=>`<i class="operator-dot ${operatorClass(name)}"></i>`).join('');
      const cellBackground=leaveCellBackground(absentNames);
      cells+=`<span class="annual-day ${cls}${count?' has-operator-color':''}" data-iso="${iso}" data-details="${encodeURIComponent(JSON.stringify(details))}" style="${cellBackground?`background:${cellBackground}`:''}" tabindex="0" aria-label="Dettagli ${day} ${monthName}"><b>${day}</b>${turn?'<u class="annual-saturday-flag"></u>':''}${dayNote?'<u class="annual-note-flag" title="Nota presente"></u>':''}${dots?`<em class="annual-operator-dots">${dots}</em>`:''}${count?`<small>${count}</small>`:''}</span>`;
@@ -382,9 +421,72 @@ async function removeLeaveFromSelectedDay(id){
  if(error)return toast(`Errore: ${error.message}`);
  await loadRemoteState();renderAll();openDayAction(selectedCalendarDate);toast('Ferie aggiornate');
 }
-function renderPeople(){renderPeopleList('#operatorsList',state.operators,'operator');renderPeopleList('#criminalList',state.gipPenale,'gipPenale');renderPeopleList('#civilList',state.gipCivile,'gipCivile')}
-function renderPeopleList(sel,items,type){$(sel).innerHTML=items.map((x,i)=>`<div class="person-row"><span>${x}</span><button class="icon-btn delete-person" data-type="${type}" data-index="${i}">×</button></div>`).join('')}
-function timelineHtml(items){return items.map(a=>`<div class="timeline-item"><strong>${a.action}</strong><small>${a.user} · ${new Intl.DateTimeFormat('it-IT',{dateStyle:'short',timeStyle:'short'}).format(new Date(a.when))}</small></div>`).join('')||'<p class="muted">Nessuna modifica registrata.</p>'}
+
+function reminderFilteredTurns(){
+  const mode=$('#reminderMode')?.value||'operator';
+  const operator=$('#reminderOperator')?.value||'';
+  const period=$('#reminderPeriod')?.value||'future';
+  const today=new Date().toISOString().slice(0,10);
+  return turnsInSelectedYear().filter(t=>mode==='all'||t.operator===operator).filter(t=>period==='future'?t.date>=today:period==='done'?t.date<today:true).sort((a,b)=>a.date.localeCompare(b.date));
+}
+function reminderTurns(){
+ const filtered=reminderFilteredTurns();
+ const selected=filtered.filter(t=>selectedReminderTurnIds.has(t.id));
+ return selected.length?selected:filtered;
+}
+function buildTurnReminder(){
+  const mode=$('#reminderMode')?.value||'operator';
+  const operator=$('#reminderOperator')?.value||'';
+  const period=$('#reminderPeriod')?.value||'future';
+  const turns=reminderTurns();
+  const periodLabel=period==='future'?'ancora da svolgere':period==='done'?'già svolti':`dell’anno ${selectedYear}`;
+  const subject=mode==='operator'?`Promemoria turni del sabato ${selectedYear} – ${operator}`:`Prospetto turni del sabato ${selectedYear} – tutti gli operatori`;
+  let lines=[];
+  if(mode==='operator') lines=turns.map(t=>`- ${fmtDate(t.date,{weekday:'long',day:'numeric',month:'long',year:'numeric'})}${t.gipPenale?` – GIP Penale: ${t.gipPenale}`:''}${t.gipCivile?` – GIP Civile: ${t.gipCivile}`:''};`);
+  else lines=turns.map(t=>`- ${fmtDate(t.date,{weekday:'long',day:'numeric',month:'long',year:'numeric'})} – ${t.operator||'operatore da assegnare'}${t.gipPenale?` – GIP Penale: ${t.gipPenale}`:''}${t.gipCivile?` – GIP Civile: ${t.gipCivile}`:''};`);
+  if(lines.length)lines[lines.length-1]=lines[lines.length-1].replace(/;$/,'.');
+  const recipientName=mode==='operator'?operator:'Funzionario';
+  const text=`Buongiorno${mode==='operator'?' '+operator.split(' ')[0]:''},\n\n${mode==='operator'?'di seguito i turni del sabato a te assegnati':'si trasmette il prospetto dei turni del sabato assegnati agli operatori'} ${periodLabel}:\n\n${lines.join('\n')||'- Nessun turno corrispondente.'}\n\nCordiali saluti\n${currentUser?.name||''}`;
+  return {subject,text,turns,recipientName};
+}
+function defaultReminderRecipient(){
+ const mode=$('#reminderMode')?.value||'operator';const op=$('#reminderOperator')?.value||'';
+ return mode==='all'?(appSettings.officialEmail||''):(appSettings.operatorEmails?.[op]||'');
+}
+function renderTurnReminder(){
+  const mode=$('#reminderMode'),operatorSelect=$('#reminderOperator'),wrap=$('#reminderOperatorWrap');if(!mode||!operatorSelect)return;
+  const current=operatorSelect.value;operatorSelect.innerHTML=state.operators.map(x=>`<option ${x===current?'selected':''}>${x}</option>`).join('');
+  wrap.hidden=mode.value==='all';
+  const available=reminderFilteredTurns();
+  [...selectedReminderTurnIds].forEach(id=>{if(!available.some(t=>t.id===id))selectedReminderTurnIds.delete(id)});
+  $('#reminderTurnSelection').innerHTML=available.map(t=>`<label class="reminder-turn-check"><input type="checkbox" class="reminder-turn-checkbox" data-id="${t.id}" ${selectedReminderTurnIds.has(t.id)?'checked':''}><span><strong>${fmtDate(t.date,{weekday:'short',day:'numeric',month:'short'})}</strong><small>${t.operator||'Da assegnare'}${t.gipPenale?` · ${t.gipPenale}`:''}</small></span></label>`).join('')||'<p class="muted">Nessun turno disponibile.</p>';
+  const built=buildTurnReminder();
+  $('#reminderSubject').value=built.subject;$('#reminderText').value=built.text;
+  const today=new Date().toISOString().slice(0,10),done=built.turns.filter(t=>t.date<today).length,future=built.turns.filter(t=>t.date>=today).length;
+  $('#reminderSummary').innerHTML=`<div><span>Turni nel prospetto</span><strong>${built.turns.length}</strong></div><div><span>Già svolti</span><strong>${done}</strong></div><div><span>Da svolgere</span><strong>${future}</strong></div>`;
+  $('#reminderRecipient').value=defaultReminderRecipient();
+}
+async function recordCommunication(stato){
+ const built=buildTurnReminder();const recipient=$('#reminderRecipient').value.trim();
+ const {error}=await supabaseClient.from('comunicazioni').insert({tipo:'promemoria_turni',destinatario:recipient||null,oggetto:$('#reminderSubject').value.trim(),contenuto:$('#reminderText').value.trim(),record_ids:built.turns.map(t=>t.id),stato,created_by:currentUser.id});
+ if(error)return toast(`Errore: ${error.message}`);toast(stato==='inviata'?'Comunicazione segnata come inviata':'Comunicazione segnata come preparata');
+}
+async function copyTurnReminder(){const text=`Oggetto: ${$('#reminderSubject').value.trim()}\n\n${$('#reminderText').value.trim()}`;try{await navigator.clipboard.writeText(text);toast('Promemoria copiato negli appunti')}catch{$('#reminderText').select();document.execCommand('copy');toast('Testo copiato')}}
+function openTurnReminderEmail(){const recipient=$('#reminderRecipient').value.trim();window.location.href=`mailto:${encodeURIComponent(recipient)}?subject=${encodeURIComponent($('#reminderSubject').value.trim())}&body=${encodeURIComponent($('#reminderText').value.trim())}`}
+function printTurnReminder(){const w=window.open('','_blank');w.document.write(`<html><head><title>${$('#reminderSubject').value}</title><style>body{font-family:Arial;padding:40px;white-space:pre-wrap;line-height:1.5}</style></head><body><h2>${$('#reminderSubject').value}</h2>${$('#reminderText').value.replace(/\n/g,'<br>')}</body></html>`);w.document.close();w.print()}
+
+function renderSettings(){
+ const wrap=$('#settingsOperatorEmails');if(!wrap)return;
+ $('#settingsManagerEmail').value=appSettings.managerEmail||'';$('#settingsOfficialEmail').value=appSettings.officialEmail||'';
+ wrap.innerHTML=state.operators.map((op,i)=>`<label>${op}<input class="settings-operator-email" data-operator="${op}" type="email" value="${appSettings.operatorEmails?.[op]||''}" placeholder="email operatore"></label>`).join('');
+}
+async function saveSettings(){
+ const operatorEmails={};$$('.settings-operator-email').forEach(el=>operatorEmails[el.dataset.operator]=el.value.trim());
+ const value={managerEmail:$('#settingsManagerEmail').value.trim(),officialEmail:$('#settingsOfficialEmail').value.trim(),operatorEmails};
+ const {error}=await supabaseClient.from('impostazioni_app').upsert({chiave:'contatti',valore,updated_by:currentUser.id},{onConflict:'chiave'});
+ const st=$('#settingsStatus');if(error){st.textContent=`Errore: ${error.message}`;st.className='form-status error';return}appSettings=value;st.textContent='Impostazioni salvate.';st.className='form-status success';renderTurnReminder();
+}
+
 function renderAudit(){$('#auditList').innerHTML=timelineHtml(state.audit)}
 
 function setupAnnualDayTooltips(){
@@ -417,7 +519,7 @@ function positionCalendarTooltip(e,el,tooltip){
  tooltip.style.left=`${x}px`;tooltip.style.top=`${y}px`;
 }
 
-function renderCalendar(){const year=2026,month=calendarMonth;$('#monthSelect').value=String(month);const first=new Date(year,month,1),last=new Date(year,month+1,0);const start=(first.getDay()+6)%7;let html=['Lun','Mar','Mer','Gio','Ven','Sab','Dom'].map(x=>`<div class="calendar-cell calendar-head">${x}</div>`).join('');for(let i=0;i<42;i++){const day=i-start+1;const d=new Date(year,month,day);const inMonth=day>=1&&day<=last.getDate();const iso=d.toISOString().slice(0,10);const turn=state.turns.find(t=>t.date===iso);const leaves=state.leaves.filter(l=>l.status!=='Rifiutata'&&between(iso,l.start,l.end));let pills='';if(turn){pills+=`<div class="event-pill ${getConflict(turn)?'conflict':'turn'}">${turn.operator||'<span class="unassigned">Turno da assegnare</span>'}</div>`;if(turn.gipPenale)pills+=`<div class="event-pill turn">P: ${turn.gipPenale}</div>`;if(turn.gipCivile)pills+=`<div class="event-pill civil">C: ${turn.gipCivile}</div>`}leaves.forEach(l=>pills+=`<div class="event-pill leave ${operatorClass(l.operator)}"><i></i>Ferie: ${l.operator.split(' ')[0]}</div>`);html+=`<div class="calendar-cell ${inMonth?'':'muted-day'}"><div class="day-number">${d.getDate()}</div>${pills}</div>`}$('#calendarGrid').innerHTML=html}
+function renderCalendar(){const year=selectedYear,month=calendarMonth;$('#monthSelect').value=String(month);const first=new Date(year,month,1),last=new Date(year,month+1,0);const start=(first.getDay()+6)%7;let html=['Lun','Mar','Mer','Gio','Ven','Sab','Dom'].map(x=>`<div class="calendar-cell calendar-head">${x}</div>`).join('');for(let i=0;i<42;i++){const day=i-start+1;const d=new Date(year,month,day);const inMonth=day>=1&&day<=last.getDate();const iso=d.toISOString().slice(0,10);const turn=state.turns.find(t=>t.date===iso);const leaves=state.leaves.filter(l=>l.status!=='Rifiutata'&&between(iso,l.start,l.end));let pills='';if(turn){pills+=`<div class="event-pill ${getConflict(turn)?'conflict':'turn'}">${turn.operator||'<span class="unassigned">Turno da assegnare</span>'}</div>`;if(turn.gipPenale)pills+=`<div class="event-pill turn">P: ${turn.gipPenale}</div>`;if(turn.gipCivile)pills+=`<div class="event-pill civil">C: ${turn.gipCivile}</div>`}leaves.forEach(l=>pills+=`<div class="event-pill leave ${operatorClass(l.operator)}"><i></i>Ferie: ${l.operator.split(' ')[0]}</div>`);html+=`<div class="calendar-cell ${inMonth?'':'muted-day'}"><div class="day-number">${d.getDate()}</div>${pills}</div>`}$('#calendarGrid').innerHTML=html}
 function fillSelects(){$('#turnOperator').innerHTML=optionList(state.operators,'','Seleziona operatore');$('#turnCriminal').innerHTML=optionList(state.gipPenale);$('#turnCivil').innerHTML=optionList(state.gipCivile);$('#leaveOperator').innerHTML=optionList(state.operators,'','Seleziona operatore');const f=$('#leaveOperatorFilter');if(f){const current=f.value;f.innerHTML='<option value="">Tutti gli operatori</option>'+state.operators.map(x=>`<option ${x===current?'selected':''}>${x}</option>`).join('')}}
 function fillLeaveEntrySelect(){
  const el=$('#leaveEntryOperator');if(!el)return;
@@ -655,8 +757,8 @@ $('#recoveryPasswordForm').addEventListener('submit',async event=>{
 $('#logoutBtn').onclick=async()=>{await supabaseClient.auth.signOut();location.reload()};
 $('#mainNav').onclick=e=>{const b=e.target.closest('.nav-item');if(!b)return;if(b.dataset.action==='profile'){openProfile();return}$$('.nav-item').forEach(x=>x.classList.remove('active'));b.classList.add('active');$$('.view').forEach(x=>x.classList.remove('active-view'));const view=$('#'+b.dataset.view);if(view)view.classList.add('active-view');$('#pageTitle').textContent=b.textContent};
 $('#addTurnBtn').onclick=()=>openTurn();$('#addLeaveBtn').onclick=()=>openLeave();
-$('#turnForm').addEventListener('submit',async e=>{e.preventDefault();const date=$('#turnDate').value;if(new Date(date+'T12:00:00').getDay()!==6)return toast('La data deve essere un sabato');const id=$('#turnId').value;const operator=$('#turnOperator').value,gp=$('#turnCriminal').value,gc=$('#turnCivil').value;if(!gp&&!gc)return toast('Assegna almeno un GIP Penale o Civile');const payload={data_turno:date,operatore_id:await getId(operatorIds,operator),gip_penale_id:await getId(gipPenaleIds,gp),gip_civile_id:await getId(gipCivileIds,gc),note:$('#turnNotes').value.trim()||null,updated_by:currentUser.id};let res=id?await supabaseClient.from('turni_sabato').update(payload).eq('id',id):await supabaseClient.from('turni_sabato').insert({...payload,created_by:currentUser.id});if(res.error)return toast(`Errore: ${res.error.message}`);await loadRemoteState();$('#turnDialog').close();renderAll();toast('Turno salvato')});
-$('#leaveForm').addEventListener('submit',async e=>{e.preventDefault();if($('#leaveEnd').value<$('#leaveStart').value)return toast('La data finale non può precedere quella iniziale');const id=$('#leaveId').value;const stato=({Richiesta:'richiesta',Approvata:'approvata',Rifiutata:'rifiutata'})[$('#leaveStatus').value];const payload={operatore_id:await getId(operatorIds,$('#leaveOperator').value),data_inizio:$('#leaveStart').value,data_fine:$('#leaveEnd').value,stato,tipologia:'Ferie',note:$('#leaveNotes').value.trim()||null,updated_by:currentUser.id};let res=id?await supabaseClient.from('ferie').update(payload).eq('id',id):await supabaseClient.from('ferie').insert({...payload,created_by:currentUser.id});if(res.error)return toast(`Errore: ${res.error.message}`);await loadRemoteState();$('#leaveDialog').close();renderAll();toast('Ferie salvate')});
+$('#turnForm').addEventListener('submit',async e=>{e.preventDefault();const date=$('#turnDate').value;if(new Date(date+'T12:00:00').getDay()!==6)return toast('La data deve essere un sabato');const id=$('#turnId').value;const operator=$('#turnOperator').value,gp=$('#turnCriminal').value,gc=$('#turnCivil').value;if(!gp&&!gc)return toast('Assegna almeno un GIP Penale o Civile');if(!confirmWarnings(validateTurnDraft(date,operator,id)))return;const payload={data_turno:date,operatore_id:await getId(operatorIds,operator),gip_penale_id:await getId(gipPenaleIds,gp),gip_civile_id:await getId(gipCivileIds,gc),note:$('#turnNotes').value.trim()||null,updated_by:currentUser.id};let res=id?await supabaseClient.from('turni_sabato').update(payload).eq('id',id):await supabaseClient.from('turni_sabato').insert({...payload,created_by:currentUser.id});if(res.error)return toast(`Errore: ${res.error.message}`);await loadRemoteState();$('#turnDialog').close();renderAll();toast('Turno salvato')});
+$('#leaveForm').addEventListener('submit',async e=>{e.preventDefault();if($('#leaveEnd').value<$('#leaveStart').value)return toast('La data finale non può precedere quella iniziale');const id=$('#leaveId').value;if(!confirmWarnings(validateLeaveDraft($('#leaveOperator').value,$('#leaveStart').value,$('#leaveEnd').value,id)))return;const stato=({Richiesta:'richiesta',Approvata:'approvata',Rifiutata:'rifiutata'})[$('#leaveStatus').value];const payload={operatore_id:await getId(operatorIds,$('#leaveOperator').value),data_inizio:$('#leaveStart').value,data_fine:$('#leaveEnd').value,stato,tipologia:'Ferie',note:$('#leaveNotes').value.trim()||null,updated_by:currentUser.id};let res=id?await supabaseClient.from('ferie').update(payload).eq('id',id):await supabaseClient.from('ferie').insert({...payload,created_by:currentUser.id});if(res.error)return toast(`Errore: ${res.error.message}`);await loadRemoteState();$('#leaveDialog').close();renderAll();toast('Ferie salvate')});
 document.addEventListener('click',async e=>{let b;if(b=e.target.closest('.edit-turn'))openTurn(b.dataset.id);if(b=e.target.closest('.delete-turn')){if(confirm('Eliminare questo turno?')){const {error}=await supabaseClient.from('turni_sabato').delete().eq('id',b.dataset.id);if(error)return toast(`Errore: ${error.message}`);await loadRemoteState();renderAll();toast('Turno eliminato')}}if(b=e.target.closest('.edit-leave'))openLeave(b.dataset.id);if(b=e.target.closest('.delete-leave')){if(confirm('Eliminare queste ferie?')){selectedLeaveIds.delete(b.dataset.id);const {error}=await supabaseClient.from('ferie').delete().eq('id',b.dataset.id);if(error)return toast(`Errore: ${error.message}`);await loadRemoteState();renderAll();toast('Ferie eliminate')}}if(b=e.target.closest('.add-person')){const labels={operator:'operatore',gipPenale:'GIP Penale',gipCivile:'GIP Civile'};$('#personType').value=b.dataset.type;$('#personName').value='';$('#personDialogTitle').textContent=`Aggiungi ${labels[b.dataset.type]}`;$('#personHelp').textContent=`Il nominativo sarà disponibile nei menu dei turni come ${labels[b.dataset.type]}.`;$('#personDialog').showModal();setTimeout(()=>$('#personName').focus(),50)}if(b=e.target.closest('.delete-person')){const type=b.dataset.type,arr=state[type],name=arr[+b.dataset.index];if(confirm(`Disattivare ${name}?`)){const table=type==='operator'?'operatori':'gip';const map=type==='operator'?operatorIds:(type==='gipPenale'?gipPenaleIds:gipCivileIds);const {error}=await supabaseClient.from(table).update({attivo:false}).eq('id',map.get(name));if(error)return toast(`Errore: ${error.message}`);await loadRemoteState();renderAll();toast('Nominativo disattivato')}}});
 $('#personForm').addEventListener('submit',async e=>{e.preventDefault();const type=$('#personType').value,name=$('#personName').value.trim();if(!['operator','gipPenale','gipCivile'].includes(type)||!name)return toast('Inserisci un nominativo valido');if(state[type].some(x=>x.toLowerCase()===name.toLowerCase()))return toast('Il nominativo è già presente');const table=type==='operator'?'operatori':'gip';const payload=type==='operator'?{nome:name,created_by:currentUser.id}:{nome:name,tipo:type==='gipPenale'?'PENALE':'CIVILE',created_by:currentUser.id};const {error}=await supabaseClient.from(table).insert(payload);if(error)return toast(`Errore: ${error.message}`);await loadRemoteState();$('#personDialog').close();renderAll();toast('Nominativo aggiunto correttamente')});
 $$('.close-person').forEach(b=>b.addEventListener('click',()=>$('#personDialog').close()));
@@ -691,11 +793,20 @@ document.addEventListener('click',e=>{
  if(remove){removeLeaveFromSelectedDay(remove.dataset.id);return}
 });
 $$('.close-day-action').forEach(b=>b.addEventListener('click',()=>$('#dayActionDialog').close()));
+['reminderMode','reminderOperator','reminderPeriod'].forEach(id=>$('#'+id)?.addEventListener('input',()=>{selectedReminderTurnIds.clear();renderTurnReminder()}));
+document.addEventListener('change',e=>{const c=e.target.closest('.reminder-turn-checkbox');if(!c)return;if(c.checked)selectedReminderTurnIds.add(c.dataset.id);else selectedReminderTurnIds.delete(c.dataset.id);renderTurnReminder()});
+$('#copyReminderBtn')?.addEventListener('click',copyTurnReminder);
+$('#openReminderEmailBtn')?.addEventListener('click',openTurnReminderEmail);
+$('#printReminderBtn')?.addEventListener('click',printTurnReminder);
+$('#markReminderPreparedBtn')?.addEventListener('click',()=>recordCommunication('preparata'));
+$('#markReminderSentBtn')?.addEventListener('click',()=>recordCommunication('inviata'));
+$('#settingsForm')?.addEventListener('submit',e=>{e.preventDefault();saveSettings()});
+$('#globalYearSelect')?.addEventListener('change',e=>{selectedYear=Number(e.target.value);selectedReminderTurnIds.clear();renderAll()});
 $('#upcomingCount').addEventListener('change',renderUpcoming);
 document.addEventListener('click',e=>{const b=e.target.closest('.goto-upcoming');if(!b)return;$$('.nav-item').forEach(x=>x.classList.toggle('active',x.dataset.view==='upcoming'));$$('.view').forEach(x=>x.classList.remove('active-view'));$('#upcoming').classList.add('active-view');$('#pageTitle').textContent='Prossimi sabati';});document.addEventListener('click',e=>{const b=e.target.closest('.goto-leave');if(!b)return;$$('.nav-item').forEach(x=>x.classList.toggle('active',x.dataset.view==='leave'));$$('.view').forEach(x=>x.classList.remove('active-view'));$('#leave').classList.add('active-view');$('#pageTitle').textContent='Ferie';});
 $('#prevMonth').onclick=()=>{calendarMonth=(calendarMonth+11)%12;renderCalendar()};$('#nextMonth').onclick=()=>{calendarMonth=(calendarMonth+1)%12;renderCalendar()};$('#monthSelect').onchange=e=>{calendarMonth=+e.target.value;renderCalendar()};
-$('#exportBtn').onclick=()=>{const blob=new Blob([JSON.stringify(state,null,2)],{type:'application/json'});const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='turni-ferie-2026-backup.json';a.click();URL.revokeObjectURL(a.href);audit('Esportato backup dati');toast('Backup esportato')};
-const months=['Gennaio','Febbraio','Marzo','Aprile','Maggio','Giugno','Luglio','Agosto','Settembre','Ottobre','Novembre','Dicembre'];$('#monthSelect').innerHTML=months.map((m,i)=>`<option value="${i}">${m} 2026</option>`).join('');$('#todayLabel').textContent=new Intl.DateTimeFormat('it-IT',{weekday:'long',day:'numeric',month:'long',year:'numeric'}).format(new Date());
+$('#exportBtn').onclick=()=>{const blob=new Blob([JSON.stringify(state,null,2)],{type:'application/json'});const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=`turni-ferie-${selectedYear}-backup.json`;a.click();URL.revokeObjectURL(a.href);audit('Esportato backup dati');toast('Backup esportato')};
+const months=['Gennaio','Febbraio','Marzo','Aprile','Maggio','Giugno','Luglio','Agosto','Settembre','Ottobre','Novembre','Dicembre'];$('#monthSelect').innerHTML=months.map((m,i)=>`<option value="${i}">${m} ${selectedYear}</option>`).join('');$('#todayLabel').textContent=new Intl.DateTimeFormat('it-IT',{weekday:'long',day:'numeric',month:'long',year:'numeric'}).format(new Date());
 (async()=>{
   try{
     const {data:{session},error}=await supabaseClient.auth.getSession();
